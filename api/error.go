@@ -1,4 +1,4 @@
-package rpc
+package api
 
 type HTTPCode interface {
 	HTTPCode() int
