@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/googollee/go-expresso/middleware"
+	"github.com/googollee/go-espresso/middleware"
 )
 
 type AuthWithAkSk[User any] struct {

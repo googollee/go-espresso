@@ -1,4 +1,4 @@
-package espresso
+package rpc
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gin-gonic/gin"
+	"github.com/googollee/go-espresso"
 )
 
 type Arg struct {
@@ -17,20 +17,22 @@ type Reply struct {
 	Double int `json:"double"`
 }
 
+type Data struct{}
+
 func TestRPC(t *testing.T) {
-	svc, err := NewService()
+	svr := espresso.NewServer(Data{})
+	svc, err := New(svr, "/prefix")
 	if err != nil {
 		t.Fatalf("create service error: %v", err)
 	}
 
-	eng := gin.New()
-	eng.POST("/add", RPC(svc, func(ctx *gin.Context, arg *Arg) (*Reply, error) {
+	POST(svc, "/add", func(ctx *espresso.Context[Data], arg *Arg) (*Reply, error) {
 		return &Reply{
 			Double: arg.I * 2,
 		}, nil
-	}))
+	})
 
-	testSvc := httptest.NewServer(eng)
+	testSvc := httptest.NewServer(svr)
 	defer testSvc.Close()
 
 	client := testSvc.Client()
@@ -40,7 +42,7 @@ func TestRPC(t *testing.T) {
 		I: 10,
 	})
 
-	resp, err := client.Post(testSvc.URL+"/add", "application/json", &buf)
+	resp, err := client.Post(testSvc.URL+"/prefix/add", "application/json", &buf)
 	if err != nil {
 		t.Fatalf("post to /add error: %v", err)
 	}

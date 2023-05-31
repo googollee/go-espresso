@@ -1,4 +1,4 @@
-package espresso
+package rpc
 
 import (
 	"encoding/json"

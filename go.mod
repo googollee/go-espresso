@@ -1,4 +1,4 @@
-module github.com/googollee/go-expresso
+module github.com/googollee/go-espresso
 
 go 1.20
 
