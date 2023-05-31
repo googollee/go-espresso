@@ -22,17 +22,25 @@ func WithDefaultMime[ContextData any](codec Codec) ServiceOpt[ContextData] {
 	}
 }
 
+func AppendMiddlewares[ContextData any](handlers ...espresso.Handler[ContextData]) ServiceOpt[ContextData] {
+	return func(s *Service[ContextData]) error {
+		s.handlers = append(s.handlers, handlers...)
+		return nil
+	}
+}
+
 type Service[ContextData any] struct {
 	server       *espresso.Server[ContextData]
-	prefix       string
 	defaultCodec Codec
+	prefix       string
+	handlers     []espresso.Handler[ContextData]
 }
 
 func New[ContextData any](server *espresso.Server[ContextData], prefix string, opts ...ServiceOpt[ContextData]) (*Service[ContextData], error) {
 	ret := Service[ContextData]{
 		server:       server,
-		prefix:       strings.TrimRight(prefix, "/"),
 		defaultCodec: CodecJSON{},
+		prefix:       strings.TrimRight(prefix, "/"),
 	}
 
 	for _, opt := range opts {

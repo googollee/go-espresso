@@ -2,6 +2,7 @@ package espresso
 
 import (
 	"net/http"
+	"reflect"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -13,6 +14,11 @@ type Server[ContextData any] struct {
 }
 
 func NewServer[ContextData any](init ContextData) *Server[ContextData] {
+	t := reflect.TypeOf(init)
+	if t.Kind() == reflect.Ptr {
+		panic("ContextData must NOT be a reference type, nor a pointer.")
+	}
+
 	ret := &Server[ContextData]{
 		server:      &http.Server{},
 		router:      httprouter.New(),
