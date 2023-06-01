@@ -27,7 +27,8 @@ func (c *registerContext[Data]) BindHead(name string, v any) error {
 	return nil
 }
 
-func (c *registerContext[Data]) Endpoint(method, path string, middlewares ...Handler[Data]) {
+func (c *registerContext[Data]) Endpoint(method, path string, middlewares ...Handler[Data]) EndpointDeclarator {
+	return newEndpointDeclarator[Data](method, path, middlewares)
 }
 
 func (c *registerContext[Data]) Data() *Data {

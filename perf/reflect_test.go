@@ -1,4 +1,4 @@
-package middleware
+package perf
 
 import (
 	"fmt"
@@ -14,7 +14,7 @@ type SomeStruct struct {
 
 func BenchmarkTypeOf(b *testing.B) {
 	got := reflect.TypeOf(&SomeStruct{}).String()
-	if got, want := got, "*espresso.SomeStruct"; got != want {
+	if got, want := got, "*perf.SomeStruct"; got != want {
 		b.Fatalf("got: %v, want: %v", got, want)
 	}
 
@@ -26,7 +26,7 @@ func BenchmarkTypeOf(b *testing.B) {
 
 func BenchmarkSprintfT(b *testing.B) {
 	got := fmt.Sprintf("%T", &SomeStruct{})
-	if got, want := got, "*espresso.SomeStruct"; got != want {
+	if got, want := got, "*perf.SomeStruct"; got != want {
 		b.Fatalf("got: %v, want: %v", got, want)
 	}
 

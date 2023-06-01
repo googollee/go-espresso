@@ -7,13 +7,16 @@ import (
 
 type Handler[ContextData any] func(Context[ContextData])
 
+type EndpointDeclarator interface {
+	BindPathParam(name string, v any) EndpointDeclarator
+	// BindQueryParam(name string, v any) EndpointDeclarator
+	// BindHead(name string, v any) EndpointDeclarator
+}
+
 type Context[ContextData any] interface {
 	context.Context
 	Data() *ContextData
-	BindURLParam(name string, v any) error
-	BindQueryParam(name string, v any) error
-	BindHead(name string, v any) error
-	Endpoint(method, path string, middlewares ...Handler[ContextData])
+	Endpoint(method, path string, middlewares ...Handler[ContextData]) EndpointDeclarator
 
 	Request() *http.Request
 	ResponseWriter() http.ResponseWriter
