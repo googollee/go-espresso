@@ -10,6 +10,7 @@ import (
 type Declarator interface {
 	BindPathParam(name string, v any) Declarator
 	BindHeader(key string, v any) Declarator
+	End()
 }
 
 type Context[Data any] interface {
@@ -35,7 +36,8 @@ func (s *Service) Add(ctx Context[struct{}], arg *AddArg) (*AddReply, error) {
 	var lastModifiedAt time.Time
 	ctx.Endpoint(http.MethodPost, "/myservice/add/:with").
 		BindPathParam("with", &with).
-		BindHeader("Last-Modified-At", &lastModifiedAt)
+		BindHeader("Last-Modified-At", &lastModifiedAt).
+		End()
 
 	ret := &AddReply{
 		Str: fmt.Sprintf("%d", arg.I+with),
