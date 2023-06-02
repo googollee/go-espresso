@@ -1,47 +1,22 @@
-package ctx
+package main
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strconv"
-	"time"
+
+	"github.com/googollee/go-espresso"
 )
-
-type Declarator interface {
-	BindPathParam(name string, v any) Declarator
-	BindHeader(key string, v any) Declarator
-	BindForm(key string, v any) Declarator
-	End()
-}
-
-type Context[Data any] interface {
-	context.Context
-	Endpoint(method, path string, middleware ...http.HandlerFunc) Declarator
-	Request() *http.Request
-	ResponseWriter() http.ResponseWriter
-	Data() Data
-}
-
-type AddArg struct {
-	I int
-}
-
-type AddReply struct {
-	Str string
-}
 
 type ContextData struct {
 	User string
 }
 
-type Service struct {
-	sessions map[int]*ContextData
-}
+var sessions = make(map[int]*ContextData)
 
-func (s *Service) LoginPage(ctx Context[ContextData]) {
+func LoginPage(ctx *espresso.Context[ContextData]) {
 	ctx.Endpoint(http.MethodGet, "/login").
-		Response(http.StatusOK, "text/html").
+		Response("text/html").
 		End()
 
 	ctx.ResponseWriter().WriteHeader(http.StatusOK)
@@ -55,12 +30,12 @@ func (s *Service) LoginPage(ctx Context[ContextData]) {
 </form>`))
 }
 
-func (s *Service) Login(ctx Context[ContextData]) {
+func Login(ctx *espresso.Context[ContextData]) {
 	var email, password string
 	ctx.Endpoint(http.MethodPost, "/login").
 		BindForm("email", &email).
 		BindForm("password", &password).
-		Response(http.StatusUnauthorized, "text/html").
+		Response("text/html").
 		End()
 
 	if email != "someone@mail.com" || password != "password" {
@@ -87,39 +62,42 @@ func (s *Service) Login(ctx Context[ContextData]) {
 	http.Redirect(ctx.ResponseWriter(), ctx.Request(), "/index.html", http.StatusTemporaryRedirect)
 }
 
-func (s *Service) Auth(ctx Context[ContextData]) {
+func Auth(ctx *espresso.Context[ContextData]) {
 	cookie, err := ctx.Request().Cookie("session")
 	if err != nil {
 		ctx.ResponseWriter().WriteHeader(http.StatusUnauthorized)
+		ctx.Abort()
 		return
 	}
 
 	id, err := strconv.ParseInt(cookie.Value, 10, 64)
 	if err != nil {
 		ctx.ResponseWriter().WriteHeader(http.StatusUnauthorized)
+		ctx.Abort()
 		return
 	}
 
-	ses, ok := s.sessions[int(id)]
+	ses, ok := sessions[int(id)]
 	if !ok {
 		ctx.ResponseWriter().WriteHeader(http.StatusUnauthorized)
+		ctx.Abort()
 		return
 	}
 
-	ctx.Data().User = ses.User
+	ctx.Data = *ses
 }
 
-func (s *Service) Add(ctx Context[struct{}], arg *AddArg) (*AddReply, error) {
-	var with int
-	var lastModifiedAt time.Time
-	ctx.Endpoint(http.MethodPost, "/myservice/add/:with").
-		BindPathParam("with", &with).
-		BindHeader("Last-Modified-At", &lastModifiedAt).
+func Index(ctx *espresso.Context[ContextData]) {
+	ctx.Endpoint(http.MethodGet, "/index.html", s.Auth).
+		Response("text/html").
 		End()
 
-	ret := &AddReply{
-		Str: fmt.Sprintf("%d", arg.I+with),
-	}
+	html := fmt.Sprintf("<p>Hello %s from go-espresso</p>", ctx.Data.User)
+	ctx.ResponseWriter().Write([]byte(html))
+}
 
-	return ret, nil
+func main() {
+	server := espresso.NewServer(ContextData{})
+	server.Handle(Login, LoginPage, Index)
+	server.ListenAndServe(":8080")
 }
