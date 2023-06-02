@@ -10,13 +10,14 @@ type Handler[ContextData any] func(Context[ContextData])
 type EndpointDeclarator interface {
 	BindPathParam(name string, v any) EndpointDeclarator
 	// BindQueryParam(name string, v any) EndpointDeclarator
-	// BindHead(name string, v any) EndpointDeclarator
+	// BindHeader(name string, v any) EndpointDeclarator
+	End()
 }
 
-type Context[ContextData any] interface {
+type Context[Data any] interface {
 	context.Context
-	Data() *ContextData
-	Endpoint(method, path string, middlewares ...Handler[ContextData]) EndpointDeclarator
+	Data() *Data
+	Endpoint(method, path string, middlewares ...Handler[Data]) EndpointDeclarator
 
 	Request() *http.Request
 	ResponseWriter() http.ResponseWriter
