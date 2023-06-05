@@ -7,7 +7,15 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-type Handler[ContextData any] func(Context[ContextData])
+type HTTPCoder interface {
+	HTTPCode() int
+}
+
+type HTTPIgnore interface {
+	Ignore() bool
+}
+
+type Handler[ContextData any] func(Context[ContextData]) error
 
 type EndpointDeclarator interface {
 	BindPathParam(name string, v any) EndpointDeclarator
@@ -23,7 +31,7 @@ type Context[Data any] interface {
 	Request() *http.Request
 	ResponseWriter() http.ResponseWriter
 	Data() *Data
-	Abort(err error)
+	Abort()
 	Error() error
 	Next()
 }
@@ -45,7 +53,7 @@ func (c *declareContext[Data]) Data() *Data {
 	panic("ctx.Endpoint().BindXXX().End() should be called in the beginning, which is not.")
 }
 
-func (c *declareContext[Data]) Abort(err error) {
+func (c *declareContext[Data]) Abort() {
 	panic("ctx.Endpoint().BindXXX().End() should be called in the beginning, which is not.")
 }
 
@@ -81,11 +89,8 @@ func (c *handleContext[Data]) Data() *Data {
 	return &c.data
 }
 
-func (c *handleContext[Data]) Abort(err error) {
+func (c *handleContext[Data]) Abort() {
 	c.isAborted = true
-	if err != nil {
-		c.error = err
-	}
 }
 
 func (c *handleContext[Data]) Error() error {
@@ -96,6 +101,14 @@ func (c *handleContext[Data]) Next() {
 	for c.handleIndex < len(c.endpoint.Handlers) && !c.isAborted {
 		handler := c.endpoint.Handlers[c.handleIndex]
 		c.handleIndex++
-		handler(c)
+		if err := handler(c); err != nil {
+			if ig, ok := err.(HTTPIgnore); ok && ig.Ignore() {
+				continue
+			}
+
+			c.isAborted = true
+			c.error = err
+			break
+		}
 	}
 }

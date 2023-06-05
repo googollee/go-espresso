@@ -2,6 +2,22 @@ package httperrors
 
 import "fmt"
 
+type httpError struct {
+	error
+	Code int
+}
+
+func WithStatus(code int, err error) error {
+	return &httpError{
+		error: err,
+		Code:  code,
+	}
+}
+
+func (e httpError) Unwrap() error {
+	return e.error
+}
+
 type HTTPCoder interface {
 	HTTPCode() int
 }
