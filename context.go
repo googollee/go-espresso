@@ -93,7 +93,7 @@ func (c *handleContext[Data]) Error() error {
 }
 
 func (c *handleContext[Data]) Next() {
-	for c.handleIndex < len(c.endpoint.Handlers) {
+	for c.handleIndex < len(c.endpoint.Handlers) && !c.isAborted {
 		handler := c.endpoint.Handlers[c.handleIndex]
 		c.handleIndex++
 		handler(c)

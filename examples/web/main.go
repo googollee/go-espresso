@@ -77,6 +77,7 @@ func Login(ctx espresso.Context[ContextData]) {
 func Auth(ctx espresso.Context[ContextData]) {
 	cookie, err := ctx.Request().Cookie("session")
 	if err != nil {
+		fmt.Println("load cookie error:", err)
 		ctx.ResponseWriter().WriteHeader(http.StatusUnauthorized)
 		ctx.Abort(nil)
 		return
@@ -84,10 +85,12 @@ func Auth(ctx espresso.Context[ContextData]) {
 
 	id, err := strconv.ParseInt(cookie.Value, 10, 64)
 	if err != nil {
+		fmt.Println("parse session id", cookie.Value, "error:", err)
 		ctx.ResponseWriter().WriteHeader(http.StatusUnauthorized)
 		ctx.Abort(nil)
 		return
 	}
+	fmt.Println("session id", id)
 
 	ses, ok := sessions[int(id)]
 	if !ok {

@@ -34,7 +34,7 @@ type Binding interface {
 type BindErrors []BindError
 
 func (e BindErrors) Error() string {
-	return fmt.Sprintf("%v", e)
+	return fmt.Sprintf("%v", []BindError(e))
 }
 
 type bindFunc func(str string, v any) error

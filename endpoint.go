@@ -137,6 +137,7 @@ func (e *endpointBuilder[Data]) End() BindErrors {
 type handleBinder[Data any] struct {
 	endpoint   *endpoint[Data]
 	pathParams httprouter.Params
+	request    *http.Request
 	bindErrors BindErrors
 }
 
@@ -144,6 +145,7 @@ func (c *handleContext[Data]) Endpoint(method, path string, handlers ...Handler[
 	return &handleBinder[Data]{
 		endpoint:   c.endpoint,
 		pathParams: c.pathParams,
+		request:    c.request,
 	}
 }
 
@@ -181,7 +183,7 @@ func (c *handleBinder[Data]) BindForm(name string, v any) Declarator {
 		panic(err)
 	}
 
-	if err := bind.BindFunc(c.pathParams.ByName(name), v); err != nil {
+	if err := bind.BindFunc(c.request.FormValue(name), v); err != nil {
 		c.bindErrors = append(c.bindErrors, BindError{
 			Type:  BindFormParam,
 			Name:  name,
