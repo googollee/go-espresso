@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/googollee/go-espresso"
+	"github.com/googollee/go-espresso/httperrors"
 )
 
 type ContextData struct {
@@ -14,13 +15,11 @@ type ContextData struct {
 
 var sessions = make(map[int]*ContextData)
 
-func LoginPage(ctx espresso.Context[ContextData]) {
+func LoginPage(ctx espresso.Context[ContextData]) error {
 	if err := ctx.Endpoint(http.MethodGet, "/login").
 		Response("text/html").
 		End(); err != nil {
-		ctx.ResponseWriter().WriteHeader(http.StatusBadRequest)
-		ctx.ResponseWriter().Write([]byte(err.Error()))
-		return
+		return httperrors.BadRequest(err)
 	}
 
 	fmt.Println("handle login page")
@@ -34,18 +33,18 @@ func LoginPage(ctx espresso.Context[ContextData]) {
   <input type="text" id="password" name="password"><br><br>
   <input type="submit" value="Submit">
 </form>`))
+
+	return nil
 }
 
-func Login(ctx espresso.Context[ContextData]) {
+func Login(ctx espresso.Context[ContextData]) error {
 	var email, password string
 	if err := ctx.Endpoint(http.MethodPost, "/login").
 		BindForm("email", &email).
 		BindForm("password", &password).
 		Response("text/html").
 		End(); err != nil {
-		ctx.ResponseWriter().WriteHeader(http.StatusBadRequest)
-		ctx.ResponseWriter().Write([]byte(err.Error()))
-		return
+		return httperrors.BadRequest(err)
 	}
 
 	fmt.Println("handle login with", email, password)
@@ -72,47 +71,44 @@ func Login(ctx espresso.Context[ContextData]) {
 	})
 
 	http.Redirect(ctx.ResponseWriter(), ctx.Request(), "/index.html", http.StatusTemporaryRedirect)
+
+	return nil
 }
 
-func Auth(ctx espresso.Context[ContextData]) {
+func Auth(ctx espresso.Context[ContextData]) error {
 	cookie, err := ctx.Request().Cookie("session")
 	if err != nil {
 		fmt.Println("load cookie error:", err)
-		ctx.ResponseWriter().WriteHeader(http.StatusUnauthorized)
-		ctx.Abort(nil)
-		return
+		return httperrors.WithStatus(http.StatusUnauthorized, "please go /login first")
 	}
 
 	id, err := strconv.ParseInt(cookie.Value, 10, 64)
 	if err != nil {
 		fmt.Println("parse session id", cookie.Value, "error:", err)
-		ctx.ResponseWriter().WriteHeader(http.StatusUnauthorized)
-		ctx.Abort(nil)
-		return
+		return httperrors.WithStatus(http.StatusUnauthorized, "please go /login first")
 	}
 	fmt.Println("session id", id)
 
 	ses, ok := sessions[int(id)]
 	if !ok {
-		ctx.ResponseWriter().WriteHeader(http.StatusUnauthorized)
-		ctx.Abort(nil)
-		return
+		return httperrors.WithStatus(http.StatusUnauthorized, "please go /login first")
 	}
 
 	*ctx.Data() = *ses
+	return nil
 }
 
-func Index(ctx espresso.Context[ContextData]) {
+func Index(ctx espresso.Context[ContextData]) error {
 	if err := ctx.Endpoint(http.MethodGet, "/index.html", Auth).
 		Response("text/html").
 		End(); err != nil {
-		ctx.ResponseWriter().WriteHeader(http.StatusBadRequest)
-		ctx.ResponseWriter().Write([]byte(err.Error()))
-		return
+		return httperrors.BadRequest(err)
 	}
 
 	html := fmt.Sprintf("<p>Hello %s from go-espresso</p>", ctx.Data().User)
 	ctx.ResponseWriter().Write([]byte(html))
+
+	return nil
 }
 
 func main() {
