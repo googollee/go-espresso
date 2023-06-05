@@ -35,3 +35,24 @@ func BenchmarkSprintfT(b *testing.B) {
 		_ = fmt.Sprintf("%T", &SomeStruct{})
 	}
 }
+
+func setInt(v any) {
+	*v.(*int) = 10
+}
+
+func BenchmarkReflectNew(b *testing.B) {
+	typ := reflect.TypeOf(int(1))
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		v := reflect.New(typ).Interface()
+		setInt(v)
+	}
+}
+func BenchmarkCompilerNew(b *testing.B) {
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		var v int
+		setInt(&v)
+	}
+}

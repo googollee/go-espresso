@@ -1,6 +1,8 @@
 package espresso
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"reflect"
 
@@ -39,16 +41,36 @@ func (s *Server[ContextData]) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	s.router.ServeHTTP(w, r)
 }
 
-func (s *Server[ContextData]) GET(path string, funcs ...Handler[ContextData]) {
-	s.router.GET(path, func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
-		ctx := newProcessContext(r.Context(), r, w, params, s.initCtxData, funcs)
-		ctx.Next()
-	})
-}
+func (s *Server[ContextData]) Handle(fn Handler[ContextData]) {
+	declareContext := &declareContext[ContextData]{
+		Context: context.Background(),
+	}
 
-func (s *Server[ContextData]) POST(path string, funcs ...Handler[ContextData]) {
-	s.router.POST(path, func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
-		ctx := newProcessContext(r.Context(), r, w, params, s.initCtxData, funcs)
+	func() {
+		defer func() {
+			r := recover()
+			if _, ok := r.(declareChcecker); ok {
+				return
+			}
+
+			panic(r) // repanic other values.
+		}()
+		fn(declareContext)
+	}()
+
+	endpoint := declareContext.endpoint
+	endpoint.Handlers = append(endpoint.Handlers, fn)
+
+	fmt.Println("handle", endpoint.Method, endpoint.Path)
+	s.router.Handle(endpoint.Method, endpoint.Path, func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+		ctx := handleContext[ContextData]{
+			Context:         r.Context(),
+			endpoint:        endpoint,
+			request:         r,
+			responserWriter: w,
+			pathParams:      params,
+			data:            s.initCtxData,
+		}
 		ctx.Next()
 	})
 }

@@ -14,10 +14,16 @@ type ContextData struct {
 
 var sessions = make(map[int]*ContextData)
 
-func LoginPage(ctx *espresso.Context[ContextData]) {
-	ctx.Endpoint(http.MethodGet, "/login").
+func LoginPage(ctx espresso.Context[ContextData]) {
+	if err := ctx.Endpoint(http.MethodGet, "/login").
 		Response("text/html").
-		End()
+		End(); err != nil {
+		ctx.ResponseWriter().WriteHeader(http.StatusBadRequest)
+		ctx.ResponseWriter().Write([]byte(err.Error()))
+		return
+	}
+
+	fmt.Println("handle login page")
 
 	ctx.ResponseWriter().WriteHeader(http.StatusOK)
 	ctx.ResponseWriter().Write([]byte(`
@@ -30,13 +36,19 @@ func LoginPage(ctx *espresso.Context[ContextData]) {
 </form>`))
 }
 
-func Login(ctx *espresso.Context[ContextData]) {
+func Login(ctx espresso.Context[ContextData]) {
 	var email, password string
-	ctx.Endpoint(http.MethodPost, "/login").
+	if err := ctx.Endpoint(http.MethodPost, "/login").
 		BindForm("email", &email).
 		BindForm("password", &password).
 		Response("text/html").
-		End()
+		End(); err != nil {
+		ctx.ResponseWriter().WriteHeader(http.StatusBadRequest)
+		ctx.ResponseWriter().Write([]byte(err.Error()))
+		return
+	}
+
+	fmt.Println("handle login with", email, password)
 
 	if email != "someone@mail.com" || password != "password" {
 		ctx.ResponseWriter().WriteHeader(http.StatusUnauthorized)
@@ -45,8 +57,8 @@ func Login(ctx *espresso.Context[ContextData]) {
 		return
 	}
 
-	sessionID := len(s.sessions)
-	s.sessions[sessionID] = &ContextData{
+	sessionID := len(sessions)
+	sessions[sessionID] = &ContextData{
 		User: "someone@mail.com",
 	}
 	http.SetCookie(ctx.ResponseWriter(), &http.Cookie{
@@ -62,42 +74,50 @@ func Login(ctx *espresso.Context[ContextData]) {
 	http.Redirect(ctx.ResponseWriter(), ctx.Request(), "/index.html", http.StatusTemporaryRedirect)
 }
 
-func Auth(ctx *espresso.Context[ContextData]) {
+func Auth(ctx espresso.Context[ContextData]) {
 	cookie, err := ctx.Request().Cookie("session")
 	if err != nil {
 		ctx.ResponseWriter().WriteHeader(http.StatusUnauthorized)
-		ctx.Abort()
+		ctx.Abort(nil)
 		return
 	}
 
 	id, err := strconv.ParseInt(cookie.Value, 10, 64)
 	if err != nil {
 		ctx.ResponseWriter().WriteHeader(http.StatusUnauthorized)
-		ctx.Abort()
+		ctx.Abort(nil)
 		return
 	}
 
 	ses, ok := sessions[int(id)]
 	if !ok {
 		ctx.ResponseWriter().WriteHeader(http.StatusUnauthorized)
-		ctx.Abort()
+		ctx.Abort(nil)
 		return
 	}
 
-	ctx.Data = *ses
+	*ctx.Data() = *ses
 }
 
-func Index(ctx *espresso.Context[ContextData]) {
-	ctx.Endpoint(http.MethodGet, "/index.html", s.Auth).
+func Index(ctx espresso.Context[ContextData]) {
+	if err := ctx.Endpoint(http.MethodGet, "/index.html", Auth).
 		Response("text/html").
-		End()
+		End(); err != nil {
+		ctx.ResponseWriter().WriteHeader(http.StatusBadRequest)
+		ctx.ResponseWriter().Write([]byte(err.Error()))
+		return
+	}
 
-	html := fmt.Sprintf("<p>Hello %s from go-espresso</p>", ctx.Data.User)
+	html := fmt.Sprintf("<p>Hello %s from go-espresso</p>", ctx.Data().User)
 	ctx.ResponseWriter().Write([]byte(html))
 }
 
 func main() {
 	server := espresso.NewServer(ContextData{})
-	server.Handle(Login, LoginPage, Index)
+	server.Handle(Login)
+	server.Handle(LoginPage)
+	server.Handle(Index)
+
+	fmt.Println("listening with :8080")
 	server.ListenAndServe(":8080")
 }
