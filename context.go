@@ -19,6 +19,7 @@ type EndpointDeclarator interface {
 
 type Context[Data any] interface {
 	context.Context
+	WithContext(ctx context.Context) Context[Data]
 	Endpoint(method, path string, middlewares ...Handler[Data]) Declarator
 
 	Request() *http.Request
@@ -34,28 +35,41 @@ type declareContext[Data any] struct {
 	endpoint *endpoint[Data]
 }
 
-func (c *declareContext[Data]) Request() *http.Request {
+func (c *declareContext[Data]) panic() {
 	panic("ctx.Endpoint().BindXXX().End() should be called in the beginning, which is not.")
+}
+
+func (c *declareContext[Data]) WithContext(ctx context.Context) Context[Data] {
+	c.panic()
+	return nil
+}
+
+func (c *declareContext[Data]) Request() *http.Request {
+	c.panic()
+	return nil
 }
 
 func (c *declareContext[Data]) ResponseWriter() http.ResponseWriter {
-	panic("ctx.Endpoint().BindXXX().End() should be called in the beginning, which is not.")
+	c.panic()
+	return nil
 }
 
 func (c *declareContext[Data]) Data() *Data {
-	panic("ctx.Endpoint().BindXXX().End() should be called in the beginning, which is not.")
+	c.panic()
+	return nil
 }
 
 func (c *declareContext[Data]) Abort() {
-	panic("ctx.Endpoint().BindXXX().End() should be called in the beginning, which is not.")
+	c.panic()
 }
 
 func (c *declareContext[Data]) Error() error {
-	panic("ctx.Endpoint().BindXXX().End() should be called in the beginning, which is not.")
+	c.panic()
+	return nil
 }
 
 func (c *declareContext[Data]) Next() {
-	panic("ctx.Endpoint().BindXXX().End() should be called in the beginning, which is not.")
+	c.panic()
 }
 
 type handleContext[Data any] struct {
@@ -70,6 +84,12 @@ type handleContext[Data any] struct {
 	hasWroteResponseCode bool
 	isAborted            bool
 	error                error
+}
+
+func (c *handleContext[Data]) WithContext(ctx context.Context) Context[Data] {
+	ret := *c
+	ret.Context = ctx
+	return &ret
 }
 
 func (c *handleContext[Data]) Request() *http.Request {

@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/googollee/go-espresso"
 )
@@ -17,6 +19,16 @@ var (
 	sessions  = make(map[int]*ContextData)
 	errUnauth = errors.New("please go /login first")
 )
+
+func WithTimeout(ctx espresso.Context[ContextData]) error {
+	newctx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+
+	ctx = ctx.WithContext(newctx)
+	ctx.Next()
+
+	return nil
+}
 
 func LoginPage(ctx espresso.Context[ContextData]) error {
 	if err := ctx.Endpoint(http.MethodGet, "/login").
@@ -102,7 +114,7 @@ func Auth(ctx espresso.Context[ContextData]) error {
 }
 
 func Index(ctx espresso.Context[ContextData]) error {
-	if err := ctx.Endpoint(http.MethodGet, "/index.html", Auth).
+	if err := ctx.Endpoint(http.MethodGet, "/index.html", WithTimeout, Auth).
 		Response("text/html").
 		End(); err != nil {
 		return espresso.WithStatus(http.StatusBadRequest, err)
