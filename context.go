@@ -2,18 +2,11 @@ package espresso
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
 )
-
-type HTTPCoder interface {
-	HTTPCode() int
-}
-
-type HTTPIgnore interface {
-	Ignore() bool
-}
 
 type Handler[ContextData any] func(Context[ContextData]) error
 
@@ -70,11 +63,13 @@ type handleContext[Data any] struct {
 	endpoint        *endpoint[Data]
 	handleIndex     int
 	request         *http.Request
-	responserWriter http.ResponseWriter
+	responserWriter *responseWriter[Data]
 	pathParams      httprouter.Params
-	isAborted       bool
-	error           error
 	data            Data
+
+	hasWroteResponseCode bool
+	isAborted            bool
+	error                error
 }
 
 func (c *handleContext[Data]) Request() *http.Request {
@@ -102,7 +97,8 @@ func (c *handleContext[Data]) Next() {
 		handler := c.endpoint.Handlers[c.handleIndex]
 		c.handleIndex++
 		if err := handler(c); err != nil {
-			if ig, ok := err.(HTTPIgnore); ok && ig.Ignore() {
+			var ig HTTPIgnore
+			if ok := errors.As(err, &ig); ok && ig.Ignore() {
 				continue
 			}
 

@@ -2,6 +2,7 @@ package espresso
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"reflect"
@@ -55,7 +56,7 @@ func (s *Server[ContextData]) Handle(fn Handler[ContextData]) {
 
 			panic(r) // repanic other values.
 		}()
-		fn(declareContext)
+		_ = fn(declareContext)
 	}()
 
 	endpoint := declareContext.endpoint
@@ -64,13 +65,34 @@ func (s *Server[ContextData]) Handle(fn Handler[ContextData]) {
 	fmt.Println("handle", endpoint.Method, endpoint.Path)
 	s.router.Handle(endpoint.Method, endpoint.Path, func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 		ctx := handleContext[ContextData]{
-			Context:         r.Context(),
-			endpoint:        endpoint,
-			request:         r,
-			responserWriter: w,
-			pathParams:      params,
-			data:            s.initCtxData,
+			Context:  r.Context(),
+			endpoint: endpoint,
+			request:  r,
+			responserWriter: &responseWriter[ContextData]{
+				ResponseWriter: w,
+			},
+			pathParams: params,
+			data:       s.initCtxData,
 		}
+		ctx.responserWriter.ctx = &ctx
+
 		ctx.Next()
+
+		if ctx.hasWroteResponseCode {
+			return
+		}
+
+		if ctx.error == nil {
+			ctx.responserWriter.WriteHeader(http.StatusOK)
+			return
+		}
+
+		code := http.StatusInternalServerError
+		var coder HTTPCoder
+		if ok := errors.As(ctx.error, &coder); ok {
+			code = coder.HTTPCode()
+		}
+		ctx.responserWriter.WriteHeader(code)
+		_, _ = ctx.responserWriter.Write([]byte(ctx.error.Error()))
 	})
 }
