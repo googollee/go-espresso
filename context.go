@@ -7,8 +7,6 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-type Handler[ContextData any] func(Context[ContextData]) error
-
 type EndpointDeclarator interface {
 	BindPathParam(name string, v any) EndpointDeclarator
 	// BindQueryParam(name string, v any) EndpointDeclarator

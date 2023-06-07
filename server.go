@@ -11,20 +11,48 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-type Server struct {
-	server *http.Server
-	router *httprouter.Router
+type ServerOption func(s *Server) error
+
+func WithCodec(defaultCodec Codec, codec ...Codec) ServerOption {
+	return func(s *Server) error {
+		if s.codecs == nil {
+			s.codecs = make(map[string]Codec)
+		}
+
+		s.defaultCodec = defaultCodec
+		s.codecs[defaultCodec.Mime()] = defaultCodec
+
+		for _, c := range codec {
+			s.codecs[c.Mime()] = c
+		}
+
+		return nil
+	}
 }
 
-func NewServer() *Server {
+type Server struct {
+	server       *http.Server
+	router       *httprouter.Router
+	defaultCodec Codec
+	codecs       map[string]Codec
+}
+
+func NewServer(options ...ServerOption) (*Server, error) {
 	ret := &Server{
-		server: &http.Server{},
-		router: httprouter.New(),
+		server:       &http.Server{},
+		router:       httprouter.New(),
+		defaultCodec: CodecJSON,
 	}
 
 	ret.server.Handler = ret.router
 
-	return ret
+	for _, opt := range options {
+		if err := opt(ret); err != nil {
+			return nil, err
+		}
+	}
+
+	return ret, nil
 }
 
 func (s *Server) ListenAndServe(addr string) error {
@@ -47,54 +75,51 @@ func (s *Server) Handle(method, path string, fn httprouter.Handle) {
 	s.router.Handle(method, path, fn)
 }
 
+func (s *Server) codec(mime string) Codec {
+	if s.codecs != nil {
+		if codec, ok := s.codecs[mime]; ok {
+			return codec
+		}
+	}
+
+	return s.defaultCodec
+}
+
 type router struct {
 	server *Server
 	prefix string
 }
+
+type Handler[Data any] func(Context[Data]) error
 
 func (r *router) Handle(method, path string, fn httprouter.Handle) {
 	path = r.prefix + "/" + strings.TrimLeft(path, "/")
 	r.server.router.Handle(method, path, fn)
 }
 
-type Router interface {
-	Handle(method, path string, fn httprouter.Handle)
+func (r *router) codec(mime string) Codec {
+	return r.server.codec(mime)
 }
 
-func Handle[ContextData any](r Router, init ContextData, fn Handler[ContextData]) {
-	t := reflect.TypeOf(init)
-	if t.Kind() == reflect.Ptr {
-		panic("ContextData must NOT be a reference type, nor a pointer.")
-	}
+type Router interface {
+	Handle(method, path string, fn httprouter.Handle)
+	codec(mime string) Codec
+}
 
-	declareContext := &declareContext[ContextData]{
-		Context: context.Background(),
-	}
+func generateHandler[Data any](ctx *declareContext[Data], init Data, fn Handler[Data]) httprouter.Handle {
+	endpoint := ctx.endpoint
+	ctx.brew.handlers = append(ctx.brew.handlers, fn)
 
-	func() {
-		defer func() {
-			r := recover()
-			if _, ok := r.(declareChcecker); ok {
-				return
-			}
+	return func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+		defer r.Body.Close()
 
-			panic(r) // repanic other values.
-		}()
-		_ = fn(declareContext)
-	}()
-
-	endpoint := declareContext.endpoint
-	declareContext.brew.handlers = append(declareContext.brew.handlers, fn)
-
-	fmt.Println("handle", endpoint.Method, endpoint.Path)
-	r.Handle(endpoint.Method, endpoint.Path, func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
-		brew := declareContext.brew
-		ctx := brewContext[ContextData]{
+		brew := ctx.brew
+		ctx := brewContext[Data]{
 			Context:  r.Context(),
 			Brewing:  &brew,
 			endpoint: endpoint,
 			request:  r,
-			responserWriter: &responseWriter[ContextData]{
+			responserWriter: &responseWriter[Data]{
 				ResponseWriter: w,
 			},
 			pathParams: params,
@@ -121,5 +146,85 @@ func Handle[ContextData any](r Router, init ContextData, fn Handler[ContextData]
 		}
 		ctx.responserWriter.WriteHeader(code)
 		_, _ = ctx.responserWriter.Write([]byte(ctx.error.Error()))
-	})
+	}
+}
+
+func Handle[Data any](r Router, init Data, fn Handler[Data]) {
+	t := reflect.TypeOf(init)
+	if t.Kind() == reflect.Ptr {
+		panic("ContextData must NOT be a reference type, nor a pointer.")
+	}
+
+	declareContext := &declareContext[Data]{
+		Context: context.Background(),
+	}
+
+	func() {
+		defer func() {
+			r := recover()
+			if _, ok := r.(declareChcecker); ok {
+				return
+			}
+
+			panic(r) // repanic other values.
+		}()
+		_ = fn(declareContext)
+	}()
+
+	endpoint := declareContext.endpoint
+	fmt.Println("handle", endpoint.Method, endpoint.Path)
+	r.Handle(endpoint.Method, endpoint.Path, generateHandler(declareContext, init, fn))
+}
+
+func HandleProcedure[Data, Request, Response any](r Router, init Data, fn func(Context[Data], *Request) (*Response, error)) {
+	t := reflect.TypeOf(init)
+	if t.Kind() == reflect.Ptr {
+		panic("ContextData must NOT be a reference type, nor a pointer.")
+	}
+
+	var req Request
+
+	declareContext := &declareContext[Data]{
+		Context: context.Background(),
+	}
+
+	func() {
+		defer func() {
+			r := recover()
+			if _, ok := r.(declareChcecker); ok {
+				return
+			}
+
+			panic(r) // repanic other values.
+		}()
+		_, _ = fn(declareContext, &req)
+	}()
+
+	endpoint := declareContext.endpoint
+	fmt.Println("handle", endpoint.Method, endpoint.Path)
+	r.Handle(endpoint.Method, endpoint.Path, generateHandler(declareContext, init, func(ctx Context[Data]) error {
+		codec := r.codec("")
+
+		var req Request
+		if err := codec.NewDecoder(ctx.Request().Body).Decode(&req); err != nil {
+			return WithStatus(http.StatusBadRequest, err)
+		}
+
+		resp, err := fn(ctx, &req)
+		if err != nil {
+			return err
+		}
+
+		if err := codec.NewEncoder(ctx.ResponseWriter()).Encode(resp); err != nil {
+			return WithStatus(http.StatusInternalServerError, err)
+		}
+
+		return nil
+	}))
+}
+
+func HandleConsumer[Data, Request any](r Router, init Data, fn func(Context[Data], Request) error) {
+}
+
+func HandleProvider[Data, Response any](r Router, init Data, fn func(Context[Data]) (Response, error)) {
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -127,7 +128,11 @@ func Index(ctx espresso.Context[ContextData]) error {
 }
 
 func main() {
-	server := espresso.NewServer()
+	server, err := espresso.NewServer(espresso.WithCodec(espresso.CodecJSON))
+	if err != nil {
+		log.Fatal("create server error:", err)
+	}
+
 	espresso.Handle(server, ContextData{}, Login)
 	espresso.Handle(server, ContextData{}, LoginPage)
 	espresso.Handle(server, ContextData{}, Index)
