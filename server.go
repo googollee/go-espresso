@@ -10,22 +10,15 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-type Server[ContextData any] struct {
-	server      *http.Server
-	router      *httprouter.Router
-	initCtxData ContextData
+type Server struct {
+	server *http.Server
+	router *httprouter.Router
 }
 
-func NewServer[ContextData any](init ContextData) *Server[ContextData] {
-	t := reflect.TypeOf(init)
-	if t.Kind() == reflect.Ptr {
-		panic("ContextData must NOT be a reference type, nor a pointer.")
-	}
-
-	ret := &Server[ContextData]{
-		server:      &http.Server{},
-		router:      httprouter.New(),
-		initCtxData: init,
+func NewServer() *Server {
+	ret := &Server{
+		server: &http.Server{},
+		router: httprouter.New(),
 	}
 
 	ret.server.Handler = ret.router
@@ -33,16 +26,21 @@ func NewServer[ContextData any](init ContextData) *Server[ContextData] {
 	return ret
 }
 
-func (s *Server[ContextData]) ListenAndServe(addr string) error {
+func (s *Server) ListenAndServe(addr string) error {
 	s.server.Addr = addr
 	return s.server.ListenAndServe()
 }
 
-func (s *Server[ContextData]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.router.ServeHTTP(w, r)
 }
 
-func (s *Server[ContextData]) Handle(fn Handler[ContextData]) {
+func Handle[ContextData any](s *Server, init ContextData, fn Handler[ContextData]) {
+	t := reflect.TypeOf(init)
+	if t.Kind() == reflect.Ptr {
+		panic("ContextData must NOT be a reference type, nor a pointer.")
+	}
+
 	declareContext := &declareContext[ContextData]{
 		Context: context.Background(),
 	}
@@ -60,21 +58,24 @@ func (s *Server[ContextData]) Handle(fn Handler[ContextData]) {
 	}()
 
 	endpoint := declareContext.endpoint
-	endpoint.Handlers = append(endpoint.Handlers, fn)
+	declareContext.brew.handlers = append(declareContext.brew.handlers, fn)
 
 	fmt.Println("handle", endpoint.Method, endpoint.Path)
 	s.router.Handle(endpoint.Method, endpoint.Path, func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
-		ctx := handleContext[ContextData]{
+		brew := declareContext.brew
+		ctx := brewContext[ContextData]{
 			Context:  r.Context(),
+			Brewing:  &brew,
 			endpoint: endpoint,
 			request:  r,
 			responserWriter: &responseWriter[ContextData]{
 				ResponseWriter: w,
 			},
 			pathParams: params,
-			data:       s.initCtxData,
+			data:       init,
 		}
 		ctx.responserWriter.ctx = &ctx
+		brew.ctx = &ctx
 
 		ctx.Next()
 

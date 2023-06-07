@@ -8,7 +8,7 @@ import (
 
 type responseWriter[Data any] struct {
 	http.ResponseWriter
-	ctx *handleContext[Data]
+	ctx *brewContext[Data]
 }
 
 func (w *responseWriter[Data]) write() {

@@ -127,10 +127,10 @@ func Index(ctx espresso.Context[ContextData]) error {
 }
 
 func main() {
-	server := espresso.NewServer(ContextData{})
-	server.Handle(Login)
-	server.Handle(LoginPage)
-	server.Handle(Index)
+	server := espresso.NewServer()
+	espresso.Handle(server, ContextData{}, Login)
+	espresso.Handle(server, ContextData{}, LoginPage)
+	espresso.Handle(server, ContextData{}, Index)
 
 	fmt.Println("listening with :8080")
 	server.ListenAndServe(":8080")

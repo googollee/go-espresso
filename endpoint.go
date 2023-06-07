@@ -9,10 +9,9 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-type endpoint[Data any] struct {
+type endpoint struct {
 	Method       string
 	Path         string
-	Handlers     []Handler[Data]
 	PathParams   []*binding
 	FormParams   []*binding
 	AcceptMimes  []string
@@ -28,7 +27,7 @@ type Declarator interface {
 }
 
 type endpointBuilder[Data any] struct {
-	endpoint   *endpoint[Data]
+	endpoint   *endpoint
 	ctx        *declareContext[Data]
 	pathParams map[string]struct{}
 }
@@ -52,11 +51,12 @@ func (c *declareContext[Data]) Endpoint(method, path string, middleware ...Handl
 
 	router.ServeHTTP(w, r)
 
+	c.brew.handlers = middleware
+
 	return &endpointBuilder[Data]{
-		endpoint: &endpoint[Data]{
-			Method:   method,
-			Path:     path,
-			Handlers: middleware,
+		endpoint: &endpoint{
+			Method: method,
+			Path:   path,
 		},
 		ctx:        c,
 		pathParams: pathParams,
@@ -134,22 +134,22 @@ func (e *endpointBuilder[Data]) End() BindErrors {
 	panic(endpointDeclareFinished{})
 }
 
-type handleBinder[Data any] struct {
-	endpoint   *endpoint[Data]
+type handleBinder struct {
+	endpoint   *endpoint
 	pathParams httprouter.Params
 	request    *http.Request
 	bindErrors BindErrors
 }
 
-func (c *handleContext[Data]) Endpoint(method, path string, handlers ...Handler[Data]) Declarator {
-	return &handleBinder[Data]{
+func (c *brewContext[Data]) Endpoint(method, path string, handlers ...Handler[Data]) Declarator {
+	return &handleBinder{
 		endpoint:   c.endpoint,
 		pathParams: c.pathParams,
 		request:    c.request,
 	}
 }
 
-func (c *handleBinder[Data]) BindPath(name string, v any) Declarator {
+func (c *handleBinder) BindPath(name string, v any) Declarator {
 	bind := c.endpoint.PathParams[0]
 	c.endpoint.PathParams = c.endpoint.PathParams[1:]
 	if bind.Name != name {
@@ -169,7 +169,7 @@ func (c *handleBinder[Data]) BindPath(name string, v any) Declarator {
 	return c
 }
 
-func (c *handleBinder[Data]) BindForm(name string, v any) Declarator {
+func (c *handleBinder) BindForm(name string, v any) Declarator {
 	var bind *binding
 	for _, b := range c.endpoint.FormParams {
 		if b.Name == name {
@@ -195,10 +195,10 @@ func (c *handleBinder[Data]) BindForm(name string, v any) Declarator {
 	return c
 }
 
-func (c *handleBinder[Data]) Response(mime string) Declarator {
+func (c *handleBinder) Response(mime string) Declarator {
 	return c
 }
 
-func (c *handleBinder[Data]) End() BindErrors {
+func (c *handleBinder) End() BindErrors {
 	return c.bindErrors
 }
