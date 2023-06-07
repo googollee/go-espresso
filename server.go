@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"strings"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -35,7 +36,32 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.router.ServeHTTP(w, r)
 }
 
-func Handle[ContextData any](s *Server, init ContextData, fn Handler[ContextData]) {
+func (s *Server) WithPrefix(prefix string) Router {
+	return &router{
+		server: s,
+		prefix: strings.TrimRight(prefix, "/"),
+	}
+}
+
+func (s *Server) Handle(method, path string, fn httprouter.Handle) {
+	s.router.Handle(method, path, fn)
+}
+
+type router struct {
+	server *Server
+	prefix string
+}
+
+func (r *router) Handle(method, path string, fn httprouter.Handle) {
+	path = r.prefix + "/" + strings.TrimLeft(path, "/")
+	r.server.router.Handle(method, path, fn)
+}
+
+type Router interface {
+	Handle(method, path string, fn httprouter.Handle)
+}
+
+func Handle[ContextData any](r Router, init ContextData, fn Handler[ContextData]) {
 	t := reflect.TypeOf(init)
 	if t.Kind() == reflect.Ptr {
 		panic("ContextData must NOT be a reference type, nor a pointer.")
@@ -61,7 +87,7 @@ func Handle[ContextData any](s *Server, init ContextData, fn Handler[ContextData
 	declareContext.brew.handlers = append(declareContext.brew.handlers, fn)
 
 	fmt.Println("handle", endpoint.Method, endpoint.Path)
-	s.router.Handle(endpoint.Method, endpoint.Path, func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+	r.Handle(endpoint.Method, endpoint.Path, func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 		brew := declareContext.brew
 		ctx := brewContext[ContextData]{
 			Context:  r.Context(),
