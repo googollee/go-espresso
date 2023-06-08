@@ -74,7 +74,6 @@ type brewContext[Data any] struct {
 	context.Context
 	Brewing
 	endpoint        *endpoint
-	handleIndex     int
 	request         *http.Request
 	responserWriter *responseWriter[Data]
 	pathParams      httprouter.Params

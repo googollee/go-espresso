@@ -136,6 +136,7 @@ func (e *endpointBuilder[Data]) End() BindErrors {
 
 type handleBinder struct {
 	endpoint   *endpoint
+	pathIndex  int
 	pathParams httprouter.Params
 	request    *http.Request
 	bindErrors BindErrors
@@ -150,8 +151,8 @@ func (c *brewContext[Data]) Endpoint(method, path string, handlers ...Handler[Da
 }
 
 func (c *handleBinder) BindPath(name string, v any) Declarator {
-	bind := c.endpoint.PathParams[0]
-	c.endpoint.PathParams = c.endpoint.PathParams[1:]
+	bind := c.endpoint.PathParams[c.pathIndex]
+	c.pathIndex++
 	if bind.Name != name {
 		err := fmt.Errorf("the url param bind is with name %s, should be with name %s", bind.Name, name)
 		panic(err)

@@ -148,10 +148,6 @@ func generateHandler[Data any](server *Server, ctx *declareContext[Data], init D
 		var coder HTTPCoder
 		if ok := errors.As(err, &coder); ok {
 			code = coder.HTTPCode()
-
-			if httpError, ok := coder.(*httpError); ok {
-				err = httpError.Unwrap()
-			}
 		}
 
 		ctx.responserWriter.Header().Set("Content-Type", server.defaultCodec.Mime())
@@ -214,7 +210,8 @@ func HandleProcedure[Data, Request, Response any](r Router, init Data, fn func(C
 	endpoint := declareContext.endpoint
 	fmt.Println("handle", endpoint.Method, endpoint.Path)
 	r.Handle(endpoint.Method, endpoint.Path, generateHandler(r.server(), declareContext, init, func(ctx Context[Data]) error {
-		codec := r.server().codec("")
+		mime := ctx.Request().Header.Get("Content-Type")
+		codec := r.server().codec(mime)
 
 		var req Request
 		if err := codec.NewDecoder(ctx.Request().Body).Decode(&req); err != nil {

@@ -10,38 +10,36 @@ type HTTPIgnore interface {
 
 func ErrWithStatus(code int, err error) error {
 	return &httpError{
-		error: err,
-		Code:  code,
+		error:   err,
+		Code:    code,
+		Message: err.Error(),
 	}
 }
 
 func ErrWithIgnore(err error) error {
-	return &httpIgnore{
-		error: err,
+	return httpError{
+		error:   err,
+		Message: err.Error(),
+		ignore:  true,
 	}
 }
 
 type httpError struct {
-	error
-	Code int
+	error   `json:"-"`
+	Code    int    `json:"-"`
+	Message string `json:"message"`
+
+	ignore bool
 }
 
 func (e httpError) HTTPCode() int {
 	return e.Code
 }
 
+func (e httpError) Ignore() bool {
+	return e.ignore
+}
+
 func (e httpError) Unwrap() error {
-	return e.error
-}
-
-type httpIgnore struct {
-	error
-}
-
-func (e httpIgnore) Ignore() bool {
-	return true
-}
-
-func (e httpIgnore) Unwrap() error {
 	return e.error
 }
