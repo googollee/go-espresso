@@ -1,13 +1,28 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"log"
 	"net/http"
-	"reflect"
 	"strings"
 
 	"github.com/googollee/go-espresso"
 )
+
+type HTTPError struct {
+	Code    int    `json:"-"`
+	Detail  string `json:"detail"`
+	Message string `json:"message"`
+}
+
+func (e HTTPError) HTTPCode() int {
+	return e.Code
+}
+
+func (e HTTPError) Error() string {
+	return fmt.Sprintf("(%s)%s", e.Detail, e.Message)
+}
 
 type User struct {
 	AccessKey string
@@ -22,23 +37,20 @@ type Service struct {
 	users map[string]*User
 }
 
-func (s *Service) Auth(ctx *espresso.Context[ContextData]) {
-	auth := ctx.Request().Header().Get("Auth")
+func (s *Service) Auth(ctx espresso.Context[ContextData]) error {
+	auth := ctx.Request().Header.Get("Auth")
 	if !strings.HasPrefix(auth, "Bearer user:") {
-		ctx.ResponseWriter().WriteHeader(http.StatusUnauthorized)
-		ctx.Abort()
-		return
+		return espresso.ErrWithStatus(http.StatusUnauthorized, errors.New("unauthorized"))
 	}
 
 	ak := auth[len("Bearer user:"):]
 	user, ok := s.users[ak]
 	if !ok {
-		ctx.ResponseWriter().WriteHeader(http.StatusUnauthorized)
-		ctx.Abort()
-		return
+		return espresso.ErrWithStatus(http.StatusUnauthorized, errors.New("unauthorized"))
 	}
 
-	ctx.Data.User = user
+	ctx.Data().User = user
+	return nil
 }
 
 type AddArg struct {
@@ -49,11 +61,13 @@ type AddReply struct {
 	Str string
 }
 
-func (s *Service) Add(ctx *espresso.Context[ContextData], arg *AddArg) (*AddReply, error) {
+func (s *Service) Add(ctx espresso.Context[ContextData], arg *AddArg) (*AddReply, error) {
 	var with int
-	ctx.Endpoint(http.MethodPost, "/add/with/:with", s.Auth).
-		BindPathParam("with", &with).
-		End()
+	if err := ctx.Endpoint(http.MethodPost, "/add/with/:with", s.Auth).
+		BindPath("with", &with).
+		End(); err != nil {
+		return nil, espresso.ErrWithStatus(http.StatusBadRequest, err)
+	}
 
 	if arg.I == 0 {
 		return nil, &HTTPError{
@@ -65,41 +79,30 @@ func (s *Service) Add(ctx *espresso.Context[ContextData], arg *AddArg) (*AddRepl
 
 	result := with + arg.I
 	ret := AddReply{
-		Str: fmt.Sprintf("%s", result),
+		Str: fmt.Sprintf("%d", result),
 	}
 
-	return ret, nil
-}
-
-type HTTPError struct {
-	Code    int `json:"-"`
-	Detail  string
-	Message string
-}
-
-func (e HTTPError) HTTPCode() int {
-	return e.Code
-}
-
-func (e HTTPError) Error() string {
-	return fmt.Sprintf("(%s)%s", e.Detail, e.Message)
+	return &ret, nil
 }
 
 func main() {
-	server := espresso.NewServer(ContextData{})
+	server, err := espresso.NewServer(espresso.WithCodec(espresso.CodecJSON))
+	if err != nil {
+		log.Fatal("create server error:", err)
+	}
 
 	service := &Service{
 		users: map[string]*User{
-			"access": &User{
+			"access": {
 				AccessKey: "access",
 				Name:      "user",
 			},
 		},
 	}
 
-	api.Handle(server, service.Add).
-		WithDefaultCodec(api.CodecJSON).
-		WithErrorType(reflect.TypeOf(HTTPError{}))
+	espresso.HandleProcedure(server, ContextData{}, service.Add)
 
-	server.ListenAndServe(":8080")
+	if err := server.ListenAndServe(":8080"); err != nil {
+		log.Fatal("listen and serve error:", err)
+	}
 }

@@ -8,14 +8,14 @@ type HTTPIgnore interface {
 	Ignore() bool
 }
 
-func WithStatus(code int, err error) error {
+func ErrWithStatus(code int, err error) error {
 	return &httpError{
 		error: err,
 		Code:  code,
 	}
 }
 
-func WithIgnore(err error) error {
+func ErrWithIgnore(err error) error {
 	return &httpIgnore{
 		error: err,
 	}

@@ -35,7 +35,7 @@ func LoginPage(ctx espresso.Context[ContextData]) error {
 	if err := ctx.Endpoint(http.MethodGet, "/login").
 		Response("text/html").
 		End(); err != nil {
-		return espresso.WithStatus(http.StatusBadRequest, err)
+		return espresso.ErrWithStatus(http.StatusBadRequest, err)
 	}
 
 	fmt.Println("handle login page")
@@ -60,7 +60,7 @@ func Login(ctx espresso.Context[ContextData]) error {
 		BindForm("password", &password).
 		Response("text/html").
 		End(); err != nil {
-		return espresso.WithStatus(http.StatusBadRequest, err)
+		return espresso.ErrWithStatus(http.StatusBadRequest, err)
 	}
 
 	fmt.Println("handle login with", email, password)
@@ -69,7 +69,7 @@ func Login(ctx espresso.Context[ContextData]) error {
 		ctx.ResponseWriter().WriteHeader(http.StatusUnauthorized)
 		ctx.ResponseWriter().Write([]byte(`
 <p>Unaushorized</p>`))
-		return espresso.WithStatus(http.StatusUnauthorized, errUnauth)
+		return espresso.ErrWithStatus(http.StatusUnauthorized, errUnauth)
 	}
 
 	sessionID := len(sessions)
@@ -95,19 +95,19 @@ func Auth(ctx espresso.Context[ContextData]) error {
 	cookie, err := ctx.Request().Cookie("session")
 	if err != nil {
 		fmt.Println("load cookie error:", err)
-		return espresso.WithStatus(http.StatusUnauthorized, errUnauth)
+		return espresso.ErrWithStatus(http.StatusUnauthorized, errUnauth)
 	}
 
 	id, err := strconv.ParseInt(cookie.Value, 10, 64)
 	if err != nil {
 		fmt.Println("parse session id", cookie.Value, "error:", err)
-		return espresso.WithStatus(http.StatusUnauthorized, errUnauth)
+		return espresso.ErrWithStatus(http.StatusUnauthorized, errUnauth)
 	}
 	fmt.Println("session id", id)
 
 	ses, ok := sessions[int(id)]
 	if !ok {
-		return espresso.WithStatus(http.StatusUnauthorized, errUnauth)
+		return espresso.ErrWithStatus(http.StatusUnauthorized, errUnauth)
 	}
 
 	*ctx.Data() = *ses
@@ -118,7 +118,7 @@ func Index(ctx espresso.Context[ContextData]) error {
 	if err := ctx.Endpoint(http.MethodGet, "/index.html", WithTimeout, Auth).
 		Response("text/html").
 		End(); err != nil {
-		return espresso.WithStatus(http.StatusBadRequest, err)
+		return espresso.ErrWithStatus(http.StatusBadRequest, err)
 	}
 
 	html := fmt.Sprintf("<p>Hello %s from go-espresso</p>", ctx.Data().User)

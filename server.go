@@ -31,7 +31,7 @@ func WithCodec(defaultCodec Codec, codec ...Codec) ServerOption {
 }
 
 type Server struct {
-	server       *http.Server
+	httpServer   *http.Server
 	router       *httprouter.Router
 	defaultCodec Codec
 	codecs       map[string]Codec
@@ -39,12 +39,12 @@ type Server struct {
 
 func NewServer(options ...ServerOption) (*Server, error) {
 	ret := &Server{
-		server:       &http.Server{},
+		httpServer:   &http.Server{},
 		router:       httprouter.New(),
 		defaultCodec: CodecJSON,
 	}
 
-	ret.server.Handler = ret.router
+	ret.httpServer.Handler = ret.router
 
 	for _, opt := range options {
 		if err := opt(ret); err != nil {
@@ -56,8 +56,8 @@ func NewServer(options ...ServerOption) (*Server, error) {
 }
 
 func (s *Server) ListenAndServe(addr string) error {
-	s.server.Addr = addr
-	return s.server.ListenAndServe()
+	s.httpServer.Addr = addr
+	return s.httpServer.ListenAndServe()
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -66,13 +66,17 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) WithPrefix(prefix string) Router {
 	return &router{
-		server: s,
+		svr:    s,
 		prefix: strings.TrimRight(prefix, "/"),
 	}
 }
 
 func (s *Server) Handle(method, path string, fn httprouter.Handle) {
 	s.router.Handle(method, path, fn)
+}
+
+func (s *Server) server() *Server {
+	return s
 }
 
 func (s *Server) codec(mime string) Codec {
@@ -86,7 +90,7 @@ func (s *Server) codec(mime string) Codec {
 }
 
 type router struct {
-	server *Server
+	svr    *Server
 	prefix string
 }
 
@@ -94,19 +98,19 @@ type Handler[Data any] func(Context[Data]) error
 
 func (r *router) Handle(method, path string, fn httprouter.Handle) {
 	path = r.prefix + "/" + strings.TrimLeft(path, "/")
-	r.server.router.Handle(method, path, fn)
+	r.svr.router.Handle(method, path, fn)
 }
 
-func (r *router) codec(mime string) Codec {
-	return r.server.codec(mime)
+func (r *router) server() *Server {
+	return r.svr
 }
 
 type Router interface {
 	Handle(method, path string, fn httprouter.Handle)
-	codec(mime string) Codec
+	server() *Server
 }
 
-func generateHandler[Data any](ctx *declareContext[Data], init Data, fn Handler[Data]) httprouter.Handle {
+func generateHandler[Data any](server *Server, ctx *declareContext[Data], init Data, fn Handler[Data]) httprouter.Handle {
 	endpoint := ctx.endpoint
 	ctx.brew.handlers = append(ctx.brew.handlers, fn)
 
@@ -135,17 +139,24 @@ func generateHandler[Data any](ctx *declareContext[Data], init Data, fn Handler[
 		}
 
 		if ctx.error == nil {
-			ctx.responserWriter.WriteHeader(http.StatusOK)
+			ctx.responserWriter.WriteHeader(http.StatusNoContent)
 			return
 		}
 
 		code := http.StatusInternalServerError
+		err := ctx.error
 		var coder HTTPCoder
-		if ok := errors.As(ctx.error, &coder); ok {
+		if ok := errors.As(err, &coder); ok {
 			code = coder.HTTPCode()
+
+			if httpError, ok := coder.(*httpError); ok {
+				err = httpError.Unwrap()
+			}
 		}
+
+		ctx.responserWriter.Header().Set("Content-Type", server.defaultCodec.Mime())
 		ctx.responserWriter.WriteHeader(code)
-		_, _ = ctx.responserWriter.Write([]byte(ctx.error.Error()))
+		server.defaultCodec.NewEncoder(ctx.responserWriter).Encode(err)
 	}
 }
 
@@ -173,7 +184,7 @@ func Handle[Data any](r Router, init Data, fn Handler[Data]) {
 
 	endpoint := declareContext.endpoint
 	fmt.Println("handle", endpoint.Method, endpoint.Path)
-	r.Handle(endpoint.Method, endpoint.Path, generateHandler(declareContext, init, fn))
+	r.Handle(endpoint.Method, endpoint.Path, generateHandler(r.server(), declareContext, init, fn))
 }
 
 func HandleProcedure[Data, Request, Response any](r Router, init Data, fn func(Context[Data], *Request) (*Response, error)) {
@@ -202,12 +213,12 @@ func HandleProcedure[Data, Request, Response any](r Router, init Data, fn func(C
 
 	endpoint := declareContext.endpoint
 	fmt.Println("handle", endpoint.Method, endpoint.Path)
-	r.Handle(endpoint.Method, endpoint.Path, generateHandler(declareContext, init, func(ctx Context[Data]) error {
-		codec := r.codec("")
+	r.Handle(endpoint.Method, endpoint.Path, generateHandler(r.server(), declareContext, init, func(ctx Context[Data]) error {
+		codec := r.server().codec("")
 
 		var req Request
 		if err := codec.NewDecoder(ctx.Request().Body).Decode(&req); err != nil {
-			return WithStatus(http.StatusBadRequest, err)
+			return ErrWithStatus(http.StatusBadRequest, err)
 		}
 
 		resp, err := fn(ctx, &req)
@@ -216,7 +227,7 @@ func HandleProcedure[Data, Request, Response any](r Router, init Data, fn func(C
 		}
 
 		if err := codec.NewEncoder(ctx.ResponseWriter()).Encode(resp); err != nil {
-			return WithStatus(http.StatusInternalServerError, err)
+			return ErrWithStatus(http.StatusInternalServerError, err)
 		}
 
 		return nil
