@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -40,13 +39,21 @@ type Service struct {
 func (s *Service) Auth(ctx espresso.Context[ContextData]) error {
 	auth := ctx.Request().Header.Get("Auth")
 	if !strings.HasPrefix(auth, "Bearer user:") {
-		return espresso.ErrWithStatus(http.StatusUnauthorized, errors.New("unauthorized"))
+		return &HTTPError{
+			Code:    http.StatusUnauthorized,
+			Detail:  "unauthorized",
+			Message: "please add ak/hash",
+		}
 	}
 
 	ak := auth[len("Bearer user:"):]
 	user, ok := s.users[ak]
 	if !ok {
-		return espresso.ErrWithStatus(http.StatusUnauthorized, errors.New("unauthorized"))
+		return &HTTPError{
+			Code:    http.StatusUnauthorized,
+			Detail:  "unauthorized",
+			Message: "please add ak/hash",
+		}
 	}
 
 	ctx.Data().User = user
@@ -54,11 +61,11 @@ func (s *Service) Auth(ctx espresso.Context[ContextData]) error {
 }
 
 type AddArg struct {
-	I int
+	I int `json:"i"`
 }
 
 type AddReply struct {
-	Str string
+	Str string `json:"str"`
 }
 
 func (s *Service) Add(ctx espresso.Context[ContextData], arg *AddArg) (*AddReply, error) {
