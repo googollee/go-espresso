@@ -6,8 +6,6 @@ import (
 	"context"
 
 	"github.com/googollee/go-espresso"
-	"github.com/googollee/go-espresso/api"
-	"github.com/googollee/go-espresso/sock"
 )
 
 type User struct {
@@ -19,17 +17,17 @@ type ContextData struct {
 	User *User
 }
 
-type ServerService[ClientService any] struct{}
+type ServerService struct{}
 
-func (s *ServerService[ClientService]) Add(ctx *sock.Context[ClientService], i, j int) (int, error) {
+func (s *ServerService) Add(ctx sock.Context[ContextData, ClientService], i, j int) (int, error) {
 	return i + j, nil
 }
 
-func (s *ServerService[ClientService]) OnConnect(ctx *sock.Context[ClientService]) error {
+func (s *ServerService) OnConnect(ctx sock.Context[ContextData, ClientService]) error {
 	return nil
 }
 
-func (s *ServerService[ClientService]) OnConnected(ctx *sock.Context[ClientService]) {
+func (s *ServerService) OnConnected(ctx sock.Context[ContextData, ClientService]) {
 	echo, err := ctx.Client.Echo(ctx, "hello")
 	if err != nil {
 		ctx.Close()
@@ -39,7 +37,7 @@ func (s *ServerService[ClientService]) OnConnected(ctx *sock.Context[ClientServi
 	_ = echo
 }
 
-func (s *ServerService[ClientService]) OnClose(ctx *sock.Context[ClientService]) error {
+func (s *ServerService) OnClose(ctx sock.Context[ClientService, ClientService]) error {
 	return nil
 }
 
@@ -48,7 +46,7 @@ type ClientService interface {
 }
 
 func main() {
-	server := espresso.NewServer(ContextData{})
+	server := espresso.NewServer()
 
 	service := ServerService{}
 

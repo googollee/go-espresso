@@ -1,11 +1,39 @@
 package espresso
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/julienschmidt/httprouter"
+	"golang.org/x/exp/slog"
 )
+
+type Logger interface {
+	With(args ...any) Logger
+	WithGroup(name string) Logger
+	DebugCtx(ctx context.Context, msg string, args ...any)
+	InfoCtx(ctx context.Context, msg string, args ...any)
+	WarnCtx(ctx context.Context, msg string, args ...any)
+	ErrorCtx(ctx context.Context, msg string, args ...any)
+}
+
+type defaultLogger struct {
+	*slog.Logger
+}
+
+func (l defaultLogger) With(args ...any) Logger {
+	return defaultLogger{
+		Logger: l.Logger.With(args...),
+	}
+}
+
+func (l defaultLogger) WithGroup(name string) Logger {
+	return defaultLogger{
+		Logger: l.Logger.WithGroup(name),
+	}
+}
 
 type ServerOption func(s *Server) error
 
@@ -26,11 +54,23 @@ func WithCodec(defaultCodec Codec, codec ...Codec) ServerOption {
 	}
 }
 
+func WithLogger(logger Logger) ServerOption {
+	return func(s *Server) error {
+		if logger == nil {
+			err := errors.New("logger should not be nil")
+			panic(err)
+		}
+		s.logger = logger
+		return nil
+	}
+}
+
 type Server struct {
 	httpServer   *http.Server
 	router       *httprouter.Router
 	defaultCodec Codec
 	codecs       map[string]Codec
+	logger       Logger
 }
 
 func NewServer(options ...ServerOption) (*Server, error) {
@@ -38,6 +78,7 @@ func NewServer(options ...ServerOption) (*Server, error) {
 		httpServer:   &http.Server{},
 		router:       httprouter.New(),
 		defaultCodec: CodecJSON,
+		logger:       defaultLogger{Logger: slog.Default()},
 	}
 
 	ret.httpServer.Handler = ret.router
