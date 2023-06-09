@@ -17,6 +17,8 @@ type EndpointDeclarator interface {
 type Context[Data any] interface {
 	context.Context
 	WithContext(ctx context.Context) Context[Data]
+	Logger
+	WithLogger(logger Logger) Context[Data]
 	Endpoint(method, path string, middlewares ...Handler[Data]) Declarator
 
 	Request() *http.Request
@@ -29,6 +31,7 @@ type Context[Data any] interface {
 
 type declareContext[Data any] struct {
 	context.Context
+	Logger
 	endpoint *endpoint
 	brew     brew[Data]
 }
@@ -38,6 +41,11 @@ func (c *declareContext[Data]) panic() {
 }
 
 func (c *declareContext[Data]) WithContext(ctx context.Context) Context[Data] {
+	c.panic()
+	return nil
+}
+
+func (c *declareContext[Data]) WithLogger(logger Logger) Context[Data] {
 	c.panic()
 	return nil
 }
@@ -73,6 +81,7 @@ func (c *declareContext[Data]) Next() {
 type brewContext[Data any] struct {
 	context.Context
 	Brewing
+	Logger
 	endpoint        *endpoint
 	request         *http.Request
 	responserWriter *responseWriter[Data]
@@ -87,6 +96,12 @@ type brewContext[Data any] struct {
 func (c *brewContext[Data]) WithContext(ctx context.Context) Context[Data] {
 	ret := *c
 	ret.Context = ctx
+	return &ret
+}
+
+func (c *brewContext[Data]) WithLogger(logger Logger) Context[Data] {
+	ret := *c
+	ret.Logger = logger
 	return &ret
 }
 

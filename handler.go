@@ -23,6 +23,7 @@ func generateHandler[Data any](server *Server, ctx *declareContext[Data], init D
 		ctx := brewContext[Data]{
 			Context:  r.Context(),
 			Brewing:  &brew,
+			Logger:   server.logger,
 			endpoint: endpoint,
 			request:  r,
 			responserWriter: &responseWriter[Data]{
@@ -66,6 +67,7 @@ func Handle[Data any](r Router, init Data, fn Handler[Data]) {
 
 	declareContext := &declareContext[Data]{
 		Context: context.Background(),
+		Logger:  r.server().logger,
 	}
 
 	func() {
@@ -95,6 +97,7 @@ func HandleProcedure[Data, Request, Response any](r Router, init Data, fn func(C
 
 	declareContext := &declareContext[Data]{
 		Context: context.Background(),
+		Logger:  r.server().logger,
 	}
 
 	func() {
@@ -143,6 +146,7 @@ func HandleConsumer[Data, Request any](r Router, init Data, fn func(Context[Data
 
 	declareContext := &declareContext[Data]{
 		Context: context.Background(),
+		Logger:  r.server().logger,
 	}
 
 	func() {
@@ -185,6 +189,7 @@ func HandleProvider[Data, Response any](r Router, init Data, fn func(Context[Dat
 
 	declareContext := &declareContext[Data]{
 		Context: context.Background(),
+		Logger:  r.server().logger,
 	}
 
 	func() {
