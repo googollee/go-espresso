@@ -9,14 +9,16 @@ import (
 type BindType int
 
 const (
-	BindURLParam  BindType = iota
-	BindFormParam BindType = iota
+	BindPath BindType = iota
+	BindForm BindType = iota
 )
 
 func (b BindType) String() string {
 	switch b {
-	case BindURLParam:
-		return "bind url param"
+	case BindPath:
+		return "bind path"
+	case BindForm:
+		return "bind form"
 	}
 	panic("bind unknown type")
 }
@@ -28,7 +30,7 @@ type BindError struct {
 }
 
 type Binding interface {
-	Bind(v any) error
+	Bind(str string) error
 }
 
 type BindErrors []BindError
@@ -41,7 +43,7 @@ type bindFunc func(str string, v any) error
 
 func bindInterface(str string, v any) error {
 	b := v.(Binding)
-	return b.Bind(v)
+	return b.Bind(str)
 }
 
 func bindInt(str string, v any) error {
