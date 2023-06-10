@@ -9,15 +9,15 @@ import (
 type BindType int
 
 const (
-	BindPath BindType = iota
-	BindForm BindType = iota
+	BindPathParam BindType = iota
+	BindFormParam BindType = iota
 )
 
 func (b BindType) String() string {
 	switch b {
-	case BindPath:
+	case BindPathParam:
 		return "bind path"
-	case BindForm:
+	case BindFormParam:
 		return "bind form"
 	}
 	panic("bind unknown type")

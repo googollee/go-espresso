@@ -160,7 +160,7 @@ func (c *handleBinder) BindPath(name string, v any) Declarator {
 
 	if err := bind.BindFunc(c.pathParams.ByName(name), v); err != nil {
 		c.bindErrors = append(c.bindErrors, BindError{
-			Type:  BindURLParam,
+			Type:  BindPathParam,
 			Name:  name,
 			Error: err,
 		})
