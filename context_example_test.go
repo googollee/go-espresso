@@ -13,7 +13,7 @@ func getUserFromSessionID(id string) string {
 	return ""
 }
 
-func ExampeHandler_middlewareAuth() {
+func ExampleHandler_middlewareAuth() {
 	type Data struct {
 		User string
 	}
