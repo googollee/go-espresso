@@ -22,7 +22,7 @@ func generateHandler[Data any](server *Server, ctx *declareContext[Data], init D
 		ctx := brewContext[Data]{
 			Context:  r.Context(),
 			brewing:  &brew,
-			Logger:   server.logger,
+			logger:   server.logger,
 			endpoint: endpoint,
 			request:  r,
 			responserWriter: &responseWriter[Data]{
@@ -73,7 +73,6 @@ func Handle[Data any](r Router, init Data, fn Handler[Data]) {
 
 	declareContext := &declareContext[Data]{
 		Context: context.Background(),
-		Logger:  r.server().logger,
 	}
 
 	func() {
@@ -89,6 +88,7 @@ func Handle[Data any](r Router, init Data, fn Handler[Data]) {
 	}()
 
 	endpoint := declareContext.endpoint
+	r.server().logger.Info("espresso handles", "method", endpoint.Method, "path", endpoint.Path)
 	r.Handle(endpoint.Method, endpoint.Path, generateHandler(r.server(), declareContext, init, fn))
 }
 
@@ -102,7 +102,6 @@ func HandleProcedure[Data, Request, Response any](r Router, init Data, fn func(C
 
 	declareContext := &declareContext[Data]{
 		Context: context.Background(),
-		Logger:  r.server().logger,
 	}
 
 	func() {
@@ -150,7 +149,6 @@ func HandleConsumer[Data, Request any](r Router, init Data, fn func(Context[Data
 
 	declareContext := &declareContext[Data]{
 		Context: context.Background(),
-		Logger:  r.server().logger,
 	}
 
 	func() {
@@ -192,7 +190,6 @@ func HandleProvider[Data, Response any](r Router, init Data, fn func(Context[Dat
 
 	declareContext := &declareContext[Data]{
 		Context: context.Background(),
-		Logger:  r.server().logger,
 	}
 
 	func() {
