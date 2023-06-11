@@ -1,6 +1,6 @@
 # go-espresso
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/googollee/go-espresso.svg)](https://pkg.go.dev/github.com/googollee/go-espresso) ![go ci](https://github.com/googollee/go-espresso/actions/workflows/go.yml/badge.svg)
+[![Go Reference](https://pkg.go.dev/badge/github.com/googollee/go-espresso.svg)](https://pkg.go.dev/github.com/googollee/go-espresso) ![CI](https://github.com/googollee/go-espresso/actions/workflows/go.yml/badge.svg)
 
 An web/API framework.
 
