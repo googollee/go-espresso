@@ -160,9 +160,10 @@ func (c *handleBinder) BindPath(name string, v any) Declarator {
 
 	if err := bind.BindFunc(c.pathParams.ByName(name), v); err != nil {
 		c.bindErrors = append(c.bindErrors, BindError{
-			Type:  BindPathParam,
-			Name:  name,
-			Error: err,
+			BindType:  BindPathParam,
+			ValueType: bind.ValueType,
+			Name:      name,
+			Err:       err,
 		})
 		return c
 	}
@@ -186,9 +187,10 @@ func (c *handleBinder) BindForm(name string, v any) Declarator {
 
 	if err := bind.BindFunc(c.request.FormValue(name), v); err != nil {
 		c.bindErrors = append(c.bindErrors, BindError{
-			Type:  BindFormParam,
-			Name:  name,
-			Error: err,
+			BindType:  BindFormParam,
+			ValueType: bind.ValueType,
+			Name:      name,
+			Err:       err,
 		})
 		return c
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 )
 
 type BindType int
@@ -24,19 +25,46 @@ func (b BindType) String() string {
 }
 
 type BindError struct {
-	Type  BindType
-	Name  string
-	Error error
+	BindType  BindType
+	ValueType reflect.Type
+	Name      string
+	Err       error
 }
 
 type Binding interface {
 	Bind(str string) error
 }
 
+func (b BindError) Error() string {
+	return fmt.Sprintf("%s with name %s to type %s error: %v", b.BindType, b.Name, b.ValueType, b.Err)
+}
+
+func (b BindError) Unwrap() error {
+	return b.Err
+}
+
 type BindErrors []BindError
 
 func (e BindErrors) Error() string {
-	return fmt.Sprintf("%v", []BindError(e))
+	errStr := make([]string, 0, len(e))
+	for _, err := range e {
+		errStr = append(errStr, err.Error())
+	}
+	return strings.Join(errStr, ", ")
+}
+
+func (e BindErrors) Unwrap() []error {
+	if len(e) == 0 {
+		return nil
+	}
+
+	ret := make([]error, 0, len(e))
+	for _, err := range e {
+		err := err
+		ret = append(ret, err)
+	}
+
+	return ret
 }
 
 type bindFunc func(str string, v any) error

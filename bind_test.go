@@ -1,8 +1,10 @@
 package espresso
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -76,5 +78,38 @@ func TestBind(t *testing.T) {
 				t.Errorf("getBindFunc(type %s)(v, %s), v diff: (-got, +want)\n%s", typ.String(), test.input, diff)
 			}
 		})
+	}
+}
+
+func TestBindErrors(t *testing.T) {
+	fakeError := errors.New("fake error")
+	bindErrors := BindErrors{
+		{BindType: BindPathParam, ValueType: reflect.TypeOf(int(0)), Name: "path_int", Err: fakeError},
+		{BindType: BindFormParam, ValueType: reflect.TypeOf(float64(0)), Name: "form_float", Err: fakeError},
+	}
+
+	for _, err := range bindErrors {
+		var _ error = err
+		if !errors.Is(err, fakeError) {
+			t.Errorf("a bind error is not a fakeError, which should be")
+		}
+
+		if !strings.Contains(err.Error(), fakeError.Error()) {
+			t.Errorf("a bind error is %q, which should contain fakeError %q", err.Error(), fakeError.Error())
+		}
+	}
+
+	var err error = bindErrors
+
+	if !errors.Is(err, fakeError) {
+		t.Errorf("bindErrors is not a fakeError, which should be")
+	}
+
+	for _, substr := range []string{
+		"path_int", "form_float", fakeError.Error(),
+	} {
+		if errStr := err.Error(); !strings.Contains(errStr, substr) {
+			t.Errorf("a bindErrors is %q, which should contain %q", errStr, substr)
+		}
 	}
 }
