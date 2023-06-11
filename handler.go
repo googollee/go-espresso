@@ -3,7 +3,6 @@ package espresso
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"reflect"
 
@@ -53,7 +52,11 @@ func generateHandler[Data any](server *Server, ctx *declareContext[Data], init D
 			code = coder.HTTPCode()
 		}
 
-		ctx.responserWriter.Header().Set("Content-Type", server.defaultCodec.Mime())
+		mime := endpoint.ResponseMime
+		if mime == "" {
+			mime = server.defaultCodec.Mime()
+		}
+		ctx.responserWriter.Header().Set("Content-Type", mime)
 		ctx.responserWriter.WriteHeader(code)
 		server.defaultCodec.NewEncoder(ctx.responserWriter).Encode(err)
 	}
@@ -83,7 +86,6 @@ func Handle[Data any](r Router, init Data, fn Handler[Data]) {
 	}()
 
 	endpoint := declareContext.endpoint
-	fmt.Println("handle", endpoint.Method, endpoint.Path)
 	r.Handle(endpoint.Method, endpoint.Path, generateHandler(r.server(), declareContext, init, fn))
 }
 
@@ -113,7 +115,6 @@ func HandleProcedure[Data, Request, Response any](r Router, init Data, fn func(C
 	}()
 
 	endpoint := declareContext.endpoint
-	fmt.Println("handle", endpoint.Method, endpoint.Path)
 	r.Handle(endpoint.Method, endpoint.Path, generateHandler(r.server(), declareContext, init, func(ctx Context[Data]) error {
 		mime := ctx.Request().Header.Get("Content-Type")
 		codec := r.server().codec(mime)
@@ -162,7 +163,6 @@ func HandleConsumer[Data, Request any](r Router, init Data, fn func(Context[Data
 	}()
 
 	endpoint := declareContext.endpoint
-	fmt.Println("handle", endpoint.Method, endpoint.Path)
 	r.Handle(endpoint.Method, endpoint.Path, generateHandler(r.server(), declareContext, init, func(ctx Context[Data]) error {
 		mime := ctx.Request().Header.Get("Content-Type")
 		codec := r.server().codec(mime)
@@ -205,7 +205,6 @@ func HandleProvider[Data, Response any](r Router, init Data, fn func(Context[Dat
 	}()
 
 	endpoint := declareContext.endpoint
-	fmt.Println("handle", endpoint.Method, endpoint.Path)
 	r.Handle(endpoint.Method, endpoint.Path, generateHandler(r.server(), declareContext, init, func(ctx Context[Data]) error {
 		mime := ctx.Request().Header.Get("Content-Type")
 		codec := r.server().codec(mime)
