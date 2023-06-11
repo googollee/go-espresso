@@ -143,6 +143,143 @@ func TestHandleBaseFunc(t *testing.T) {
 	}
 }
 
+type myHTTPError struct {
+	Code    int    `json:"-"`
+	Detail  string `json:"detail"`
+	Message string `json:"message"`
+}
+
+func (e myHTTPError) HTTPCode() int {
+	return e.Code
+}
+
+func (e myHTTPError) Error() string {
+	return fmt.Sprintf("(%s)%s", e.Detail, e.Message)
+}
+
+func TestHandleProcedure(t *testing.T) {
+	eng, err := NewServer(WithCodec(CodecJSON))
+	if err != nil {
+		t.Fatal("create server error:", err)
+	}
+
+	type User struct {
+		AccessKey string
+		Name      string
+	}
+
+	type ContextData struct {
+		User *User
+	}
+
+	users := map[string]*User{
+		"access": {
+			AccessKey: "access",
+			Name:      "name",
+		},
+	}
+
+	auth := func(ctx Context[ContextData]) error {
+		auth := ctx.Request().Header.Get("Authorization")
+		if !strings.HasPrefix(auth, "Bearer user:") {
+			return &myHTTPError{
+				Code:    http.StatusUnauthorized,
+				Detail:  "unauthorized",
+				Message: "please add ak",
+			}
+		}
+
+		ak := auth[len("Bearer user:"):]
+		user, ok := users[ak]
+		if !ok {
+			return &myHTTPError{
+				Code:    http.StatusUnauthorized,
+				Detail:  "unauthorized",
+				Message: "please add ak",
+			}
+		}
+
+		ctx.Data().User = user
+		return nil
+	}
+
+	type AddArg struct {
+		I int `json:"i"`
+	}
+
+	type AddReply struct {
+		Str string `json:"str"`
+	}
+
+	HandleProcedure(eng, ContextData{}, func(ctx Context[ContextData], arg *AddArg) (*AddReply, error) {
+		var with int
+		if err := ctx.Endpoint(http.MethodPost, "/add/with/:with", auth).
+			BindPath("with", &with).
+			End(); err != nil {
+			return nil, &myHTTPError{
+				Code:    http.StatusBadRequest,
+				Detail:  "bad_request",
+				Message: err.Error(),
+			}
+		}
+
+		result := with + arg.I
+		ret := AddReply{
+			Str: fmt.Sprintf("%d", result),
+		}
+
+		return &ret, nil
+	})
+
+	server := httptest.NewServer(eng)
+	defer server.Close()
+
+	urlBase := server.URL
+
+	tests := []struct {
+		method   string
+		path     string
+		body     string
+		opts     []curlOption
+		wantCode int
+		wantMime string
+		wantBody string
+	}{
+		{http.MethodPost, "/add/with/10", `{"i":5}`, []curlOption{withMime("application/json"), withAuth("")},
+			http.StatusUnauthorized, "application/json", `{"detail":"unauthorized","message":"please add ak"}`},
+		{http.MethodPost, "/add/with/10", `{"i":5}`, []curlOption{withMime("application/json"), withAuth("Bearer user:non_exist_access")},
+			http.StatusUnauthorized, "application/json", `{"detail":"unauthorized","message":"please add ak"}`},
+		{http.MethodPost, "/add/with/10", `{"i":5}`, []curlOption{withAuth("Bearer user:access")},
+			http.StatusOK, "application/json", `{"str":"15"}`},
+		{http.MethodPost, "/add/with/10", `{"i":5}`, []curlOption{withMime("application/json"), withAuth("Bearer user:access")},
+			http.StatusOK, "application/json", `{"str":"15"}`},
+		{http.MethodPost, "/add/with/abc", `{"i":5}`, []curlOption{withMime("application/json"), withAuth("Bearer user:access")},
+			http.StatusBadRequest, "application/json", `{"detail":"bad_request","message":"bind path with name with to type int error: strconv.ParseInt: parsing \"abc\": invalid syntax"}`},
+		{http.MethodPost, "/add/with/10", `{i:5}`, []curlOption{withMime("application/json"), withAuth("Bearer user:access")},
+			http.StatusBadRequest, "application/json", `{"message":"invalid character 'i' looking for beginning of object key string"}`},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("(%s)%s/%s", test.method, test.path, test.body), func(t *testing.T) {
+			code, mime, body, err := curl(test.method, urlBase+test.path, strings.NewReader(test.body), test.opts...)
+			if err != nil {
+				t.Fatal("response error:", err)
+				return
+			}
+
+			if got, want := code, test.wantCode; got != want {
+				t.Errorf("code got: %d, want: %d", got, want)
+			}
+			if got, want := mime, test.wantMime; got != want {
+				t.Errorf("mime got: %s, want: %s", got, want)
+			}
+			if diff := cmp.Diff(strings.TrimRight(body, "\n"), test.wantBody); diff != "" {
+				t.Errorf("body diff: (-got +want)\n%s", diff)
+			}
+		})
+	}
+}
+
 type curlOption func(r *http.Request)
 
 func withCookie(name, value string) curlOption {
@@ -160,13 +297,19 @@ func withMime(mime string) curlOption {
 	}
 }
 
-func curl(method, url string, bodyReader io.Reader, opts ...curlOption) (code int, mime string, body string, err error) {
-	client := http.Client{
-		CheckRedirect: func(*http.Request, []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
+func withAuth(auth string) curlOption {
+	return func(r *http.Request) {
+		r.Header.Add("Authorization", auth)
 	}
+}
 
+var httpClient = http.Client{
+	CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	},
+}
+
+func curl(method, url string, bodyReader io.Reader, opts ...curlOption) (code int, mime string, body string, err error) {
 	req, err := http.NewRequest(method, url, bodyReader)
 	if err != nil {
 		return
@@ -176,7 +319,7 @@ func curl(method, url string, bodyReader io.Reader, opts ...curlOption) (code in
 		opt(req)
 	}
 
-	resp, err := client.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return
 	}
