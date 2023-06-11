@@ -80,7 +80,7 @@ func (c *declareContext[Data]) Next() {
 
 type brewContext[Data any] struct {
 	context.Context
-	Brewing
+	brewing
 	Logger
 	endpoint        *endpoint
 	request         *http.Request

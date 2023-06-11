@@ -1,6 +1,6 @@
 package espresso
 
-type Brewing interface {
+type brewing interface {
 	Next()
 }
 

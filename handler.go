@@ -21,7 +21,7 @@ func generateHandler[Data any](server *Server, ctx *declareContext[Data], init D
 		brew := ctx.brew
 		ctx := brewContext[Data]{
 			Context:  r.Context(),
-			Brewing:  &brew,
+			brewing:  &brew,
 			Logger:   server.logger,
 			endpoint: endpoint,
 			request:  r,
