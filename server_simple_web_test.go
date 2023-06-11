@@ -12,7 +12,7 @@ import (
 	"github.com/googollee/go-espresso"
 )
 
-func ExampleServer_simple_web() {
+func ExampleServer_SimpleWeb() {
 	eng, err := espresso.NewServer()
 	if err != nil {
 		log.Fatal("create server error:", err)
@@ -93,6 +93,55 @@ func ExampleServer_simple_web() {
 	server := httptest.NewServer(eng)
 	defer server.Close()
 
+	type CURLOption func(r *http.Request)
+
+	WithCookie := func(name, value string) CURLOption {
+		return func(r *http.Request) {
+			r.AddCookie(&http.Cookie{
+				Name:  name,
+				Value: value,
+			})
+		}
+	}
+
+	WithMime := func(mime string) CURLOption {
+		return func(r *http.Request) {
+			r.Header.Add("Content-Type", mime)
+		}
+	}
+
+	CURL := func(method, url string, bodyReader io.Reader, opts ...CURLOption) (code int, mime string, body string, err error) {
+		client := http.Client{
+			CheckRedirect: func(*http.Request, []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		}
+
+		req, err := http.NewRequest(method, url, bodyReader)
+		if err != nil {
+			return
+		}
+
+		for _, opt := range opts {
+			opt(req)
+		}
+
+		resp, err := client.Do(req)
+		if err != nil {
+			return
+		}
+		defer resp.Body.Close()
+
+		code = resp.StatusCode
+		mime = resp.Header.Get("Content-Type")
+		buf, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return
+		}
+
+		body = string(buf)
+		return
+	}
 	baseURL := server.URL
 
 	code, mime, resp, err := CURL(http.MethodGet, baseURL+"/", nil)
@@ -128,54 +177,4 @@ func ExampleServer_simple_web() {
 
 	// GET / with cookie, response code: 200, mime: text/html, err: <nil> body:
 	// <p>Hello from espresso, my friend. Nice to meet you.</p>
-}
-
-type CURLOption func(r *http.Request)
-
-func WithCookie(name, value string) CURLOption {
-	return func(r *http.Request) {
-		r.AddCookie(&http.Cookie{
-			Name:  name,
-			Value: value,
-		})
-	}
-}
-
-func WithMime(mime string) CURLOption {
-	return func(r *http.Request) {
-		r.Header.Add("Content-Type", mime)
-	}
-}
-
-func CURL(method, url string, bodyReader io.Reader, opts ...CURLOption) (code int, mime string, body string, err error) {
-	client := http.Client{
-		CheckRedirect: func(*http.Request, []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
-
-	req, err := http.NewRequest(method, url, bodyReader)
-	if err != nil {
-		return
-	}
-
-	for _, opt := range opts {
-		opt(req)
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return
-	}
-	defer resp.Body.Close()
-
-	code = resp.StatusCode
-	mime = resp.Header.Get("Content-Type")
-	buf, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return
-	}
-
-	body = string(buf)
-	return
 }
