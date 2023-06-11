@@ -7,13 +7,6 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-type EndpointDeclarator interface {
-	BindPathParam(name string, v any) EndpointDeclarator
-	// BindQueryParam(name string, v any) EndpointDeclarator
-	// BindHeader(name string, v any) EndpointDeclarator
-	End()
-}
-
 type Context[Data any] interface {
 	context.Context
 	WithContext(ctx context.Context) Context[Data]
