@@ -12,7 +12,7 @@ import (
 	"github.com/googollee/go-espresso"
 )
 
-func ExampleWebServer() {
+func ExampleServer_simple_web() {
 	eng, err := espresso.NewServer()
 	if err != nil {
 		log.Fatal("create server error:", err)
