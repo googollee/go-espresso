@@ -19,5 +19,6 @@ An web/API framework.
 
 Requirement:
 
-- Go >= 1.19
+- Go >= 1.20
   - Require generics.
+  - `errors.Is()` supports `interface{ Unwrap() []error }`
