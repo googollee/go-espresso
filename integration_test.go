@@ -106,19 +106,19 @@ func TestHandleBaseFunc(t *testing.T) {
 		wantBody string
 	}{
 		{http.MethodGet, "/", nil, nil,
-			http.StatusOK, "text/html; charset=utf-8", `<p>Hello from espresso. Please <a href="/login">login</a> first.</p>`},
+			http.StatusOK, "text/html", `<p>Hello from espresso. Please <a href="/login">login</a> first.</p>`},
 		{http.MethodGet, "/login", nil, nil,
-			http.StatusOK, "text/plain; charset=utf-8", `<form action="/login">
+			http.StatusOK, "text/html", `<form action="/login">
   <label for="user">user:</label><br>
   <input type="text" id="user" name="user"><br>
   <input type="submit" value="Submit">
 </form>`},
 		{http.MethodPost, "/login", strings.NewReader(url.Values{}.Encode()), []curlOption{withMime("application/x-www-form-urlencoded")},
-			http.StatusOK, "text/html; charset=utf-8", `<p>The emtpy user is invalid, Please <a href="/login">login</a>.`},
+			http.StatusOK, "text/html", `<p>The emtpy user is invalid, Please <a href="/login">login</a>.`},
 		{http.MethodPost, "/login", strings.NewReader(url.Values{"user": []string{"my friend"}}.Encode()), []curlOption{withMime("application/x-www-form-urlencoded")},
-			http.StatusFound, "", ""},
+			http.StatusFound, "text/html", ""},
 		{http.MethodGet, "/", nil, []curlOption{withCookie("user", "my friend")},
-			http.StatusOK, "text/html; charset=utf-8", `<p>Hello from espresso, my friend. Nice to meet you.</p>`},
+			http.StatusOK, "text/html", `<p>Hello from espresso, my friend. Nice to meet you.</p>`},
 	}
 
 	for _, test := range tests {

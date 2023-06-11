@@ -34,6 +34,14 @@ func generateHandler[Data any](server *Server, ctx *declareContext[Data], init D
 		ctx.responserWriter.ctx = &ctx
 		brew.ctx = &ctx
 
+		mime := endpoint.ResponseMime
+		if mime == "" {
+			mime = server.defaultCodec.Mime()
+		}
+		if mime != "" {
+			ctx.responserWriter.Header().Set("Content-Type", mime)
+		}
+
 		ctx.Next()
 
 		if ctx.hasWroteResponseCode {
@@ -52,11 +60,6 @@ func generateHandler[Data any](server *Server, ctx *declareContext[Data], init D
 			code = coder.HTTPCode()
 		}
 
-		mime := endpoint.ResponseMime
-		if mime == "" {
-			mime = server.defaultCodec.Mime()
-		}
-		ctx.responserWriter.Header().Set("Content-Type", mime)
 		ctx.responserWriter.WriteHeader(code)
 		server.defaultCodec.NewEncoder(ctx.responserWriter).Encode(err)
 	}
