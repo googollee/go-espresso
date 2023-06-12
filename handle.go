@@ -89,7 +89,7 @@ func Handle[Data any](r Router, init Data, fn Handler[Data]) {
 
 	endpoint := declareContext.endpoint
 	r.server().logger.Info("espresso handles", "method", endpoint.Method, "path", endpoint.Path)
-	r.Handle(endpoint.Method, endpoint.Path, generateHandler(r.server(), declareContext, init, fn))
+	r.handle(endpoint.Method, endpoint.Path, generateHandler(r.server(), declareContext, init, fn))
 }
 
 func HandleProcedure[Data, Request, Response any](r Router, init Data, fn func(Context[Data], *Request) (*Response, error)) {
@@ -117,7 +117,7 @@ func HandleProcedure[Data, Request, Response any](r Router, init Data, fn func(C
 	}()
 
 	endpoint := declareContext.endpoint
-	r.Handle(endpoint.Method, endpoint.Path, generateHandler(r.server(), declareContext, init, func(ctx Context[Data]) error {
+	r.handle(endpoint.Method, endpoint.Path, generateHandler(r.server(), declareContext, init, func(ctx Context[Data]) error {
 		mime := ctx.Request().Header.Get("Content-Type")
 		codec := r.server().codec(mime)
 
@@ -164,7 +164,7 @@ func HandleConsumer[Data, Request any](r Router, init Data, fn func(Context[Data
 	}()
 
 	endpoint := declareContext.endpoint
-	r.Handle(endpoint.Method, endpoint.Path, generateHandler(r.server(), declareContext, init, func(ctx Context[Data]) error {
+	r.handle(endpoint.Method, endpoint.Path, generateHandler(r.server(), declareContext, init, func(ctx Context[Data]) error {
 		mime := ctx.Request().Header.Get("Content-Type")
 		codec := r.server().codec(mime)
 
@@ -205,7 +205,7 @@ func HandleProvider[Data, Response any](r Router, init Data, fn func(Context[Dat
 	}()
 
 	endpoint := declareContext.endpoint
-	r.Handle(endpoint.Method, endpoint.Path, generateHandler(r.server(), declareContext, init, func(ctx Context[Data]) error {
+	r.handle(endpoint.Method, endpoint.Path, generateHandler(r.server(), declareContext, init, func(ctx Context[Data]) error {
 		mime := ctx.Request().Header.Get("Content-Type")
 		codec := r.server().codec(mime)
 

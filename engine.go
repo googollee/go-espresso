@@ -108,16 +108,16 @@ func (s *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *Engine) WithPrefix(prefix string) Router {
 	return &router{
 		svr:    s,
-		prefix: strings.TrimRight(prefix, "/"),
+		prefix: "/" + strings.Trim(prefix, "/"),
 	}
-}
-
-func (s *Engine) Handle(method, path string, fn httprouter.Handle) {
-	s.router.Handle(method, path, fn)
 }
 
 func (s *Engine) server() *Engine {
 	return s
+}
+
+func (s *Engine) handle(method, path string, fn httprouter.Handle) {
+	s.router.Handle(method, path, fn)
 }
 
 func (s *Engine) codec(mime string) Codec {
@@ -135,7 +135,14 @@ type router struct {
 	prefix string
 }
 
-func (r *router) Handle(method, path string, fn httprouter.Handle) {
+func (r *router) WithPrefix(prefix string) Router {
+	return &router{
+		svr:    r.svr,
+		prefix: r.prefix + "/" + strings.Trim(prefix, "/"),
+	}
+}
+
+func (r *router) handle(method, path string, fn httprouter.Handle) {
 	path = r.prefix + "/" + strings.TrimLeft(path, "/")
 	r.svr.router.Handle(method, path, fn)
 }
@@ -145,6 +152,7 @@ func (r *router) server() *Engine {
 }
 
 type Router interface {
-	Handle(method, path string, fn httprouter.Handle)
+	WithPrefix(prefix string) Router
 	server() *Engine
+	handle(method, path string, fn httprouter.Handle)
 }
