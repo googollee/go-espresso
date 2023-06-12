@@ -17,6 +17,14 @@ An web/API framework.
   - testing
     - `go-cmp`
 
+Examples to show the usage:
+
+ - [Example (SimpleWeb)]
+ - [Example (RestAPI)]
+
+[Example (SimpleWeb)]: https://pkg.go.dev/github.com/googollee/go-espresso#example-Handle-SimpleWeb
+[Example (RestAPI)]: https://pkg.go.dev/github.com/googollee/go-espresso#example-Handle-RestAPI
+
 Requirement:
 
 - Go >= 1.20
