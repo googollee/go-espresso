@@ -10,7 +10,7 @@ import (
 	"github.com/googollee/go-espresso"
 )
 
-func ExampleHandle_simpleWeb() {
+func ExampleEngine_simpleWeb() {
 	eng, err := espresso.NewServer()
 	if err != nil {
 		log.Fatal("create server error:", err)
@@ -106,7 +106,7 @@ func (e MyHTTPError) Error() string {
 	return fmt.Sprintf("(%s)%s", e.Detail, e.Message)
 }
 
-func ExampleHandle_restAPI() {
+func ExampleEngine_restAPI() {
 	eng, err := espresso.NewServer(espresso.WithCodec(espresso.CodecJSON))
 	if err != nil {
 		log.Fatal("create server error:", err)

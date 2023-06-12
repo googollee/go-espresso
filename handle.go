@@ -11,7 +11,7 @@ import (
 
 type Handler[Data any] func(Context[Data]) error
 
-func generateHandler[Data any](server *Server, ctx *declareContext[Data], init Data, fn Handler[Data]) httprouter.Handle {
+func generateHandler[Data any](server *Engine, ctx *declareContext[Data], init Data, fn Handler[Data]) httprouter.Handle {
 	endpoint := ctx.endpoint
 	ctx.brew.handlers = append(ctx.brew.handlers, fn)
 

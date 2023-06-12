@@ -6,6 +6,6 @@
 //
 // Examples to show the usage are [Example (SimpleWeb)] and [Example (RestAPI)].
 //
-// [Example (SimpleWeb)]: #example-Handle-SimpleWeb
-// [Example (RestAPI)]: #example-Handle-RestAPI
+// [Example (SimpleWeb)]: https://pkg.go.dev/github.com/googollee/go-espresso#example-Handle-SimpleWeb
+// [Example (RestAPI)]: https://pkg.go.dev/github.com/googollee/go-espresso#example-Handle-RestAPI
 package espresso
