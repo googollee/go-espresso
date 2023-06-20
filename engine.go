@@ -11,8 +11,6 @@ import (
 )
 
 type Logger interface {
-	With(args ...any) Logger
-	WithGroup(name string) Logger
 	Debug(msg string, args ...any)
 	DebugCtx(ctx context.Context, msg string, args ...any)
 	Info(msg string, args ...any)
@@ -77,7 +75,7 @@ type Engine struct {
 	logger       Logger
 }
 
-func NewServer(options ...EngineOption) (*Engine, error) {
+func NewEngine(options ...EngineOption) (*Engine, error) {
 	ret := &Engine{
 		httpServer:   &http.Server{},
 		router:       httprouter.New(),

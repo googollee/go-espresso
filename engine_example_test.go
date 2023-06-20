@@ -11,7 +11,7 @@ import (
 )
 
 func ExampleEngine_simpleWeb() {
-	eng, err := espresso.NewServer()
+	eng, err := espresso.NewEngine()
 	if err != nil {
 		log.Fatal("create server error:", err)
 	}
@@ -107,7 +107,7 @@ func (e MyHTTPError) Error() string {
 }
 
 func ExampleEngine_restAPI() {
-	eng, err := espresso.NewServer(espresso.WithCodec(espresso.CodecJSON))
+	eng, err := espresso.NewEngine(espresso.WithCodec(espresso.CodecJSON))
 	if err != nil {
 		log.Fatal("create server error:", err)
 	}

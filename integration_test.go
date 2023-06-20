@@ -10,10 +10,13 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"golang.org/x/exp/slog"
 )
 
+var _ Logger = slog.Default()
+
 func TestHandleBaseFunc(t *testing.T) {
-	eng, err := NewServer()
+	eng, err := NewEngine()
 	if err != nil {
 		t.Fatal("create server error:", err)
 	}
@@ -158,7 +161,7 @@ func (e myHTTPError) Error() string {
 }
 
 func TestHandleProcedure(t *testing.T) {
-	eng, err := NewServer(WithCodec(CodecJSON))
+	eng, err := NewEngine(WithCodec(CodecJSON))
 	if err != nil {
 		t.Fatal("create server error:", err)
 	}
