@@ -88,6 +88,15 @@ func bindStr(str string, v any) error {
 	return nil
 }
 
+func bindUint(str string, v any) error {
+	u, err := strconv.ParseUint(str, 10, 64)
+	if err != nil {
+		return err
+	}
+	*v.(*uint) = uint(u)
+	return nil
+}
+
 func getBindFunc(v any) bindFunc {
 	if _, ok := v.(Binding); ok {
 		return bindInterface
@@ -98,6 +107,8 @@ func getBindFunc(v any) bindFunc {
 		return bindStr
 	case *int:
 		return bindInt
+	case *uint:
+		return bindUint
 	}
 
 	return nil

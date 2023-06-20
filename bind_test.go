@@ -36,10 +36,12 @@ func TestBind(t *testing.T) {
 		status Status
 	}{
 		{string(""), "string", "string", StatusOK},
-		{int(0), 100, "100", StatusOK},
+		{int(0), int(100), "100", StatusOK},
+		{uint(0), uint(100), "100", StatusOK},
 		{myValue{}, myValue{Str: "my:myValue"}, "myValue", StatusOK},
 
-		{int(0), 0, "not a number", StatusError},
+		{int(0), int(0), "not a number", StatusError},
+		{uint(0), uint(0), "-1", StatusError},
 
 		{nonBinder{}, nil, "myValue", StatusPanic},
 	}
@@ -85,6 +87,7 @@ func TestBindErrors(t *testing.T) {
 	fakeError := errors.New("fake error")
 	bindErrors := BindErrors{
 		{BindType: BindPathParam, ValueType: reflect.TypeOf(int(0)), Name: "path_int", Err: fakeError},
+		{BindType: BindPathParam, ValueType: reflect.TypeOf(uint(0)), Name: "path_uint", Err: fakeError},
 		{BindType: BindFormParam, ValueType: reflect.TypeOf(float64(0)), Name: "form_float", Err: fakeError},
 	}
 
@@ -106,7 +109,7 @@ func TestBindErrors(t *testing.T) {
 	}
 
 	for _, substr := range []string{
-		"path_int", "form_float", fakeError.Error(),
+		"path_int", "form_float", "path_uint", fakeError.Error(),
 	} {
 		if errStr := err.Error(); !strings.Contains(errStr, substr) {
 			t.Errorf("a bindErrors is %q, which should contain %q", errStr, substr)
