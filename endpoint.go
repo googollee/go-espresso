@@ -14,6 +14,7 @@ type endpoint struct {
 	Path         string
 	PathParams   []*binding
 	FormParams   []*binding
+	QueryParams  []*binding
 	AcceptMimes  []string
 	ResponseMime string
 	ResponseType reflect.Type
@@ -22,6 +23,7 @@ type endpoint struct {
 type Declarator interface {
 	BindPath(name string, v any) Declarator
 	BindForm(name string, v any) Declarator
+	BindQuery(name string, v any) Declarator
 	Response(mime string) Declarator
 	End() BindErrors
 }
@@ -101,7 +103,23 @@ func (e *endpointBuilder[Data]) BindForm(name string, v any) Declarator {
 	e.endpoint.FormParams = append(e.endpoint.FormParams, &bind)
 
 	return e
+}
 
+func (e *endpointBuilder[Data]) BindQuery(name string, v any) Declarator {
+	f := getBindFunc(v)
+	if f == nil {
+		err := fmt.Errorf("can't parse path param %s to type %T", name, v)
+		panic(err)
+	}
+
+	bind := binding{
+		Name:      name,
+		BindFunc:  f,
+		ValueType: reflect.TypeOf(v).Elem(),
+	}
+	e.endpoint.QueryParams = append(e.endpoint.QueryParams, &bind)
+
+	return e
 }
 
 func (e *endpointBuilder[Data]) Response(mime string) Declarator {
@@ -188,6 +206,33 @@ func (c *handleBinder) BindForm(name string, v any) Declarator {
 	if err := bind.BindFunc(c.request.FormValue(name), v); err != nil {
 		c.bindErrors = append(c.bindErrors, BindError{
 			BindType:  BindFormParam,
+			ValueType: bind.ValueType,
+			Name:      name,
+			Err:       err,
+		})
+		return c
+	}
+
+	return c
+}
+
+func (c *handleBinder) BindQuery(name string, v any) Declarator {
+	var bind *binding
+	for _, b := range c.endpoint.QueryParams {
+		if b.Name == name {
+			bind = b
+			break
+		}
+	}
+
+	if bind == nil {
+		err := fmt.Errorf("can't find a bind of the query param with name %s", name)
+		panic(err)
+	}
+
+	if err := bind.BindFunc(c.request.URL.Query().Get(name), v); err != nil {
+		c.bindErrors = append(c.bindErrors, BindError{
+			BindType:  BindQueryParam,
 			ValueType: bind.ValueType,
 			Name:      name,
 			Err:       err,

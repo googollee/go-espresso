@@ -11,7 +11,8 @@ type BindType int
 
 const (
 	BindPathParam BindType = iota
-	BindFormParam BindType = iota
+	BindFormParam
+	BindQueryParam
 )
 
 func (b BindType) String() string {
@@ -20,6 +21,8 @@ func (b BindType) String() string {
 		return "bind path"
 	case BindFormParam:
 		return "bind form"
+	case BindQueryParam:
+		return "bind query"
 	}
 	panic("bind unknown type")
 }

@@ -52,6 +52,10 @@ func TestDeclaratorNormal(t *testing.T) {
 	var form2 int
 	declarator.BindForm("form1", &form1)
 	declarator.BindForm("form2", &form2)
+	var query1 string
+	var query2 int
+	declarator.BindQuery("query1", &query1)
+	declarator.BindQuery("query2", &query2)
 
 	declarator.Response("response/type")
 
@@ -79,6 +83,10 @@ func TestDeclaratorNormal(t *testing.T) {
 		FormParams: []*binding{
 			{"form1", bindStr, reflect.TypeOf("")},
 			{"form2", bindInt, reflect.TypeOf(int(0))},
+		},
+		QueryParams: []*binding{
+			{Name: "query1", BindFunc: bindStr, ValueType: reflect.TypeOf("")},
+			{Name: "query2", BindFunc: bindInt, ValueType: reflect.TypeOf(int(0))},
 		},
 		ResponseMime: "response/type",
 	}
