@@ -7,6 +7,8 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
+type Empty struct{}
+
 type Context[Data any] interface {
 	context.Context
 	WithContext(ctx context.Context) Context[Data]

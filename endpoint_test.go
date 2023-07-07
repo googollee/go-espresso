@@ -2,6 +2,8 @@ package espresso
 
 import (
 	"fmt"
+	"net/http"
+	"net/url"
 	"reflect"
 	"testing"
 
@@ -147,6 +149,81 @@ func TestEndpointBindPath(t *testing.T) {
 
 			if got, want := panicStr, test.wantPanicStr; got != want {
 				t.Errorf("panic with %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+func TestEndpointBindQuery(t *testing.T) {
+	tests := []struct {
+		path         string
+		binding      func(d Declarator) any
+		wantPanicStr string
+		want         any
+	}{
+		{"/path/no/params", func(d Declarator) any {
+			return nil
+		}, "", nil},
+		{"/path/int?param=1", func(d Declarator) any {
+			var i int
+			d.BindQuery("param", &i)
+			return i
+		}, "", 1},
+		{"/path/one/more?param=1&more=abc", func(d Declarator) any {
+			var i int
+			d.BindQuery("param", &i)
+			return i
+		}, "", 1},
+		{"/path/not/exist/param?", func(d Declarator) any {
+			var i int
+			d.BindQuery("param", &i)
+			return i
+		}, "", 0},
+	}
+
+	for _, test := range tests {
+		t.Run(test.path, func(t *testing.T) {
+			declareCtx := &declareContext[struct{}]{}
+			declarator := declareCtx.Endpoint("method", test.path)
+
+			panicStr := ""
+			func() {
+				defer func() {
+					r := recover()
+					if c, ok := r.(declareChcecker); ok && c.DeclareDone() {
+						return
+					}
+					panicStr = fmt.Sprintf("%v", r)
+				}()
+				test.binding(declarator)
+
+				if err := declarator.End(); err != nil {
+					t.Errorf("declarator.End() returns error: %v", err)
+				}
+			}()
+
+			if got, want := panicStr, test.wantPanicStr; got != want {
+				t.Errorf("panic with %q, want %q", got, want)
+			}
+
+			u, err := url.Parse(test.path)
+			if err != nil {
+				t.Fatalf("invalid url %s: %v", test.path, err)
+			}
+			brewCtx := &brewContext[struct{}]{
+				request: &http.Request{
+					URL: u,
+				},
+				endpoint: declareCtx.endpoint,
+			}
+			declarator = brewCtx.Endpoint("method", test.path)
+			v := test.binding(declarator)
+			if err := declarator.End(); err != nil {
+				t.Errorf("declarator.End() returns error: %v", err)
+			}
+
+			if diff := cmp.Diff(v, test.want); diff != "" {
+				t.Errorf("value is not what it wants, diff:\n%s", diff)
 			}
 		})
 	}

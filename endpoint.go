@@ -203,7 +203,16 @@ func (c *handleBinder) BindForm(name string, v any) Declarator {
 		panic(err)
 	}
 
-	if err := bind.BindFunc(c.request.FormValue(name), v); err != nil {
+	if c.request.Form == nil {
+		const defaultMaxMemory = 32 << 20 // same as http, 32 MB
+		c.request.ParseMultipartForm(defaultMaxMemory)
+	}
+	value := c.request.Form[name]
+	if len(value) == 0 {
+		return c
+	}
+
+	if err := bind.BindFunc(value[0], v); err != nil {
 		c.bindErrors = append(c.bindErrors, BindError{
 			BindType:  BindFormParam,
 			ValueType: bind.ValueType,
@@ -230,7 +239,12 @@ func (c *handleBinder) BindQuery(name string, v any) Declarator {
 		panic(err)
 	}
 
-	if err := bind.BindFunc(c.request.URL.Query().Get(name), v); err != nil {
+	query := c.request.URL.Query()[name]
+	if len(query) == 0 {
+		return c
+	}
+
+	if err := bind.BindFunc(query[0], v); err != nil {
 		c.bindErrors = append(c.bindErrors, BindError{
 			BindType:  BindQueryParam,
 			ValueType: bind.ValueType,
