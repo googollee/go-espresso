@@ -36,6 +36,8 @@ func (s *Service) Create(ctx context.Context, arg int) (string, error) {
 	log.Info(ctx, "in create")
 	log.Debug(ctx, "input", "arg", arg)
 
+	// or:
+	// req, err := tracing.NewHTTPRequest(http.MethodPost, "", nil)
 	req, err := http.NewRequest(http.MethodPost, "", nil)
 	tracing.Inject(ctx, req.Header)
 
