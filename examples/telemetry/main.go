@@ -33,7 +33,7 @@ func (s *Service) Create(ctx context.Context, arg int) (string, error) {
 	defer span.End()
 
 	log.Info(ctx, "in create")
-	log.LogDebug(ctx, "input", "arg", arg)
+	log.Debug(ctx, "input", "arg", arg)
 
 	req, err := http.NewRequest(http.MethodPost, "", nil)
 	tracing.Inject(ctx, req.Header)
