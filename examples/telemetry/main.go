@@ -8,6 +8,7 @@ import (
 	"github.com/googollee/go-espresso"
 	log "github.com/googollee/go-espresso/log"
 	prometheus "github.com/googollee/go-espresso/monitoring/prometheus"
+	openapi "github.com/googollee/go-espresso/openapi"
 	tracing "github.com/googollee/go-espresso/tracing"
 	opentelemetry "github.com/googollee/go-espresso/tracing/opentelemetry"
 )
@@ -51,6 +52,7 @@ func main() {
 		log.New(os.Stderr, log.DEBUG),
 		prometheus.New("/metrics"),
 		opentelemetry.New("https://url"),
+		openapi.New("/spec"),
 	)
 
 	eng.HandleAll(svc)
