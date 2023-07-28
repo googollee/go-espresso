@@ -104,7 +104,7 @@ func (b *BookService) deleteBook(ctx espresso.Context) (*Book, error) {
 
 func main() {
 	svc := BookService{}
-	eng := espresso.Default()
-	eng.HandleAll(&svc)
-	eng.ListenAndServe(":8000")
+	server := espresso.Default()
+	server.HandleAll(&svc)
+	server.ListenAndServe(":8000")
 }
