@@ -9,17 +9,34 @@ import (
 	"github.com/googollee/go-espresso"
 )
 
+type User struct {
+	ID string
+}
+
+func authToUser(user *User) func(ctx espresso.Context) error {
+	userID := ctx.Request().Head.Get("Auth")
+	user.ID = userID
+	return nil
+}
+
 type Book struct {
-	ID   string
-	Name string
+	ID      string
+	Name    string
+	OwnedBy string
 }
 
 type BookService struct{}
 
-func (b *BookService) getBook(book *Book) func(ctx context.Context, id string) error {
-	return func(ctx context.Context, book *Book) error {
+func (b *BookService) bindToBook(user *User, book *Book) func(ctx context.Context, id string) error {
+	return func(ctx context.Context, id string) error {
 		book.ID = id
 		book.Name = "existed_book"
+		book.OwnedBy = "owner"
+
+		if book.OwnedBy != user.ID {
+			return espresso.ErrWithStatus(http.StatusUnauthorized, "unauth")
+		}
+
 		return nil
 	}
 }
@@ -29,7 +46,8 @@ func (b *BookService) CreateBook(ctx espresso.Context) error {
 }
 
 func (b *BookService) createBook(ctx espresso.Context, in *Book) (*Book, error) {
-	if err := ctx.Endpoint(http.MethodPost, "/").
+	var user User
+	if err := ctx.Endpoint(http.MethodPost, "/", authToUser(&user)).
 		End(); err != nil {
 		return nil, err
 	}
@@ -39,15 +57,18 @@ func (b *BookService) createBook(ctx espresso.Context, in *Book) (*Book, error) 
 }
 
 func (b *BookService) GetBook(ctx espresso.Context) error {
+	return espresso.Provider(ctx, b.getBook)
+}
+
+func (b *BookService) getBook(ctx espresso.Context) (*Book, error) {
 	var book Book
-	if err := ctx.Endpoint(http.MethodGet, "/{id}").
-		BindPath("id", b.getBook(&book)).End(); err != nil {
+	var user User
+	if err := ctx.Endpoint(http.MethodGet, "/{id}", authToUser(&user)).
+		BindPath("id", b.bindToBook(&user, &book)).End(); err != nil {
 		return nil, err
 	}
 
-	return espresso.Provider(ctx, func(context.Context) (*Book, error) {
-		return &book, nil
-	})
+	return &book, nil
 }
 
 func (b *BookService) UpdateBook(ctx espresso.Context) error {
@@ -56,8 +77,9 @@ func (b *BookService) UpdateBook(ctx espresso.Context) error {
 
 func (b *BookService) updateBook(ctx espresso.Context, in *Book) (*Book, error) {
 	var org Book
-	if err := ctx.Endpoint(http.MethodPost, "/{id}").
-		BindPath("id", b.getBook(&org)).End(); err != nil {
+	var user User
+	if err := ctx.Endpoint(http.MethodPost, "/{id}", authToUser(&user)).
+		BindPath("id", b.bindToBook(&user, &org)).End(); err != nil {
 		return nil, err
 	}
 
@@ -71,8 +93,9 @@ func (b *BookService) DeleteBook(ctx espresso.Context) error {
 
 func (b *BookService) deleteBook(ctx espresso.Context) (*Book, error) {
 	var org Book
-	if err := ctx.Endpoint(http.MethodDelete, "/{id}").
-		BindPath("id", b.getBook(&org)).End(); err != nil {
+	var user User
+	if err := ctx.Endpoint(http.MethodDelete, "/{id}", authToUser(&user)).
+		BindPath("id", b.bindToBook(&user, &org)).End(); err != nil {
 		return nil, err
 	}
 
