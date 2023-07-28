@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/googollee/go-espresso"
@@ -27,14 +28,14 @@ type Book struct {
 
 type BookService struct{}
 
-func (b *BookService) bindToBook(user *User, book *Book) func(ctx context.Context, id string) error {
+func (b *BookService) bindToBook(user *User, book *Book) espresso.BindFunc {
 	return func(ctx context.Context, id string) error {
 		book.ID = id
 		book.Name = "existed_book"
 		book.OwnedBy = "owner"
 
 		if book.OwnedBy != user.ID {
-			return espresso.ErrWithStatus(http.StatusUnauthorized, "unauth")
+			return espresso.ErrWithStatus(http.StatusUnauthorized, errors.New("unauth"))
 		}
 
 		return nil
