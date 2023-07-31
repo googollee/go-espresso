@@ -1,266 +1,146 @@
 package espresso
 
 import (
+	"errors"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
-	"reflect"
-
-	"github.com/julienschmidt/httprouter"
 )
 
-type endpoint struct {
-	Method       string
-	Path         string
-	PathParams   []*binding
-	FormParams   []*binding
-	QueryParams  []*binding
-	AcceptMimes  []string
-	ResponseMime string
-	ResponseType reflect.Type
-}
-
-type Declarator interface {
-	BindPath(name string, v any) Declarator
-	BindForm(name string, v any) Declarator
-	BindQuery(name string, v any) Declarator
-	Response(mime string) Declarator
+type EndpointBuilder interface {
+	BindPath(key string, v any, opts ...BindOption) EndpointBuilder
+	BindForm(key string, v any, opts ...BindOption) EndpointBuilder
+	BindQuery(key string, v any, opts ...BindOption) EndpointBuilder
 	End() BindErrors
 }
 
-type endpointBuilder[Data any] struct {
-	endpoint   *endpoint
-	ctx        *declareContext[Data]
-	pathParams map[string]struct{}
+type Endpoint struct {
+	Method      string
+	Path        string
+	PathParams  map[string]BindParam
+	QueryParams map[string]BindParam
+	FormParams  map[string]BindParam
 }
 
-func (c *declareContext[Data]) Endpoint(method, path string, middleware ...Handler[Data]) Declarator {
-	pathParams := make(map[string]struct{})
+type endpointBinder struct {
+	context  *runtimeContext
+	endpoint *Endpoint
+	err      BindErrors
+}
 
-	router := httprouter.New()
-	router.Handle(method, path, func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
-		for _, param := range params {
-			pathParams[param.Key] = struct{}{}
-		}
-	})
+func (e *endpointBinder) BindPath(key string, v any, opts ...BindOption) EndpointBuilder {
+	bindParam := e.endpoint.PathParams[key]
+	str := e.context.pathParams.ByName(key)
 
-	r, err := http.NewRequest(method, path, nil)
+	if err := bindParam.fn(e.context, v, str); err != nil {
+		e.err = append(e.err, newBindError(bindParam, err))
+		return e
+	}
+
+	return e
+}
+
+func (e *endpointBinder) BindForm(key string, v any, opts ...BindOption) EndpointBuilder {
+	bindParam := e.endpoint.FormParams[key]
+	req := e.context.request
+
+	if err := req.ParseForm(); err != nil {
+		e.err = append(e.err, newBindError(bindParam, err))
+		return e
+	}
+
+	str := req.FormValue(key)
+	if err := bindParam.fn(e.context, v, str); err != nil {
+		e.err = append(e.err, newBindError(bindParam, err))
+		return e
+	}
+
+	return e
+}
+
+func (e *endpointBinder) BindQuery(key string, v any, opts ...BindOption) EndpointBuilder {
+	bindParam := e.endpoint.QueryParams[key]
+	req := e.context.request
+
+	str := req.URL.Query().Get(key)
+	if err := bindParam.fn(e.context, v, str); err != nil {
+		e.err = append(e.err, newBindError(bindParam, err))
+		return e
+	}
+
+	return e
+}
+
+func (e *endpointBinder) End() BindErrors {
+	if len(e.err) != 0 {
+		return e.err
+	}
+	return nil
+}
+
+type endpointBuilderFail []error
+
+var errEndpointBuildEnd = errors.New("endpoint built")
+
+func (e endpointBuilderFail) String() string {
+	return fmt.Sprintf("%v", []error(e))
+}
+
+type endpointBuilder struct {
+	endpoint *Endpoint
+	err      endpointBuilderFail
+}
+
+func (e *endpointBuilder) BindPath(key string, v any, opts ...BindOption) EndpointBuilder {
+	bind := e.bindParam(key, BindPathParam, v, opts)
+	if bind != nil {
+		e.addBindParam(&e.endpoint.PathParams, key, *bind)
+	}
+	return e
+}
+
+func (e *endpointBuilder) BindForm(key string, v any, opts ...BindOption) EndpointBuilder {
+	bind := e.bindParam(key, BindFormParam, v, opts)
+	if bind != nil {
+		e.addBindParam(&e.endpoint.FormParams, key, *bind)
+	}
+	return e
+}
+
+func (e *endpointBuilder) BindQuery(key string, v any, opts ...BindOption) EndpointBuilder {
+	bind := e.bindParam(key, BindQueryParam, v, opts)
+	if bind != nil {
+		e.addBindParam(&e.endpoint.QueryParams, key, *bind)
+	}
+	return e
+}
+
+func (e *endpointBuilder) End() BindErrors {
+	if len(e.err) != 0 {
+		panic(e.err)
+	}
+
+	panic(errEndpointBuildEnd)
+}
+
+func (e *endpointBuilder) bindParam(key string, typ BindType, v any, opts []BindOption) *BindParam {
+	bind, err := newBindParam(key, typ, v)
 	if err != nil {
-		err := fmt.Errorf("can't create request with method %s and path %s, it should not happen", method, path)
-		panic(err)
-	}
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, r)
-
-	c.brew.handlers = middleware
-
-	return &endpointBuilder[Data]{
-		endpoint: &endpoint{
-			Method: method,
-			Path:   path,
-		},
-		ctx:        c,
-		pathParams: pathParams,
-	}
-}
-
-func (e *endpointBuilder[Data]) BindPath(name string, v any) Declarator {
-	if _, ok := e.pathParams[name]; !ok {
-		err := fmt.Errorf("can't find variables with name %s in path %s", name, e.endpoint.Path)
-		panic(err)
-	}
-	delete(e.pathParams, name)
-
-	f := getBindFunc(v)
-	if f == nil {
-		err := fmt.Errorf("can't parse path param %s to type %T", name, v)
-		panic(err)
+		e.err = append(e.err, err)
+		return nil
 	}
 
-	bind := binding{
-		Name:      name,
-		BindFunc:  f,
-		ValueType: reflect.TypeOf(v).Elem(),
-	}
-	e.endpoint.PathParams = append(e.endpoint.PathParams, &bind)
-
-	return e
-}
-
-func (e *endpointBuilder[Data]) BindForm(name string, v any) Declarator {
-	f := getBindFunc(v)
-	if f == nil {
-		err := fmt.Errorf("can't parse path param %s to type %T", name, v)
-		panic(err)
-	}
-
-	bind := binding{
-		Name:      name,
-		BindFunc:  f,
-		ValueType: reflect.TypeOf(v).Elem(),
-	}
-	e.endpoint.FormParams = append(e.endpoint.FormParams, &bind)
-
-	return e
-}
-
-func (e *endpointBuilder[Data]) BindQuery(name string, v any) Declarator {
-	f := getBindFunc(v)
-	if f == nil {
-		err := fmt.Errorf("can't parse path param %s to type %T", name, v)
-		panic(err)
-	}
-
-	bind := binding{
-		Name:      name,
-		BindFunc:  f,
-		ValueType: reflect.TypeOf(v).Elem(),
-	}
-	e.endpoint.QueryParams = append(e.endpoint.QueryParams, &bind)
-
-	return e
-}
-
-func (e *endpointBuilder[Data]) Response(mime string) Declarator {
-	e.endpoint.ResponseMime = mime
-	return e
-}
-
-type endpointDeclareFinished struct{}
-
-func (f endpointDeclareFinished) DeclareDone() bool {
-	return true
-}
-
-type declareChcecker interface {
-	DeclareDone() bool
-}
-
-func (e *endpointBuilder[Data]) End() BindErrors {
-	if len(e.pathParams) != 0 {
-		names := make([]string, 0, len(e.pathParams))
-		for name := range e.pathParams {
-			names = append(names, name)
-		}
-		err := fmt.Errorf("didn't bind any variables with path params %v", names)
-		panic(err)
-	}
-
-	e.ctx.endpoint = e.endpoint
-
-	panic(endpointDeclareFinished{})
-}
-
-type handleBinder struct {
-	endpoint   *endpoint
-	pathIndex  int
-	pathParams httprouter.Params
-	request    *http.Request
-	bindErrors BindErrors
-}
-
-func (c *brewContext[Data]) Endpoint(method, path string, handlers ...Handler[Data]) Declarator {
-	return &handleBinder{
-		endpoint:   c.endpoint,
-		pathParams: c.pathParams,
-		request:    c.request,
-	}
-}
-
-func (c *handleBinder) BindPath(name string, v any) Declarator {
-	bind := c.endpoint.PathParams[c.pathIndex]
-	c.pathIndex++
-	if bind.Name != name {
-		err := fmt.Errorf("the url param bind is with name %s, should be with name %s", bind.Name, name)
-		panic(err)
-	}
-
-	if err := bind.BindFunc(c.pathParams.ByName(name), v); err != nil {
-		c.bindErrors = append(c.bindErrors, BindError{
-			BindType:  BindPathParam,
-			ValueType: bind.ValueType,
-			Name:      name,
-			Err:       err,
-		})
-		return c
-	}
-
-	return c
-}
-
-func (c *handleBinder) BindForm(name string, v any) Declarator {
-	var bind *binding
-	for _, b := range c.endpoint.FormParams {
-		if b.Name == name {
-			bind = b
-			break
+	for _, opt := range opts {
+		if err := opt(&bind); err != nil {
+			e.err = append(e.err, err)
+			return nil
 		}
 	}
 
-	if bind == nil {
-		err := fmt.Errorf("can't find a bind of the form param with name %s", name)
-		panic(err)
-	}
-
-	if c.request.Form == nil {
-		const defaultMaxMemory = 32 << 20 // same as http, 32 MB
-		c.request.ParseMultipartForm(defaultMaxMemory)
-	}
-	value := c.request.Form[name]
-	if len(value) == 0 {
-		return c
-	}
-
-	if err := bind.BindFunc(value[0], v); err != nil {
-		c.bindErrors = append(c.bindErrors, BindError{
-			BindType:  BindFormParam,
-			ValueType: bind.ValueType,
-			Name:      name,
-			Err:       err,
-		})
-		return c
-	}
-
-	return c
+	return &bind
 }
 
-func (c *handleBinder) BindQuery(name string, v any) Declarator {
-	var bind *binding
-	for _, b := range c.endpoint.QueryParams {
-		if b.Name == name {
-			bind = b
-			break
-		}
+func (e *endpointBuilder) addBindParam(m *map[string]BindParam, key string, b BindParam) {
+	if *m == nil {
+		*m = make(map[string]BindParam)
 	}
-
-	if bind == nil {
-		err := fmt.Errorf("can't find a bind of the query param with name %s", name)
-		panic(err)
-	}
-
-	query := c.request.URL.Query()[name]
-	if len(query) == 0 {
-		return c
-	}
-
-	if err := bind.BindFunc(query[0], v); err != nil {
-		c.bindErrors = append(c.bindErrors, BindError{
-			BindType:  BindQueryParam,
-			ValueType: bind.ValueType,
-			Name:      name,
-			Err:       err,
-		})
-		return c
-	}
-
-	return c
-}
-
-func (c *handleBinder) Response(mime string) Declarator {
-	return c
-}
-
-func (c *handleBinder) End() BindErrors {
-	return c.bindErrors
+	(*m)[key] = b
 }

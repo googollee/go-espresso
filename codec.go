@@ -5,34 +5,19 @@ import (
 	"io"
 )
 
-type Encoder interface {
-	Encode(v any) error
-}
-
-type Decoder interface {
-	Decode(v any) error
-}
-
 type Codec interface {
-	Mime() string
-	NewEncoder(w io.Writer) Encoder
-	NewDecoder(r io.Reader) Decoder
+	Encode(w io.Writer, v any) error
+	Decode(r io.Reader, v any) error
 }
 
-var (
-	CodecJSON Codec = codecJSON{}
-)
+var DefaultCodec Codec = CodecJSON{}
 
-type codecJSON struct{}
+type CodecJSON struct{}
 
-func (c codecJSON) Mime() string {
-	return "application/json"
+func (c CodecJSON) Encode(w io.Writer, v any) error {
+	return json.NewEncoder(w).Encode(v)
 }
 
-func (c codecJSON) NewEncoder(w io.Writer) Encoder {
-	return json.NewEncoder(w)
-}
-
-func (c codecJSON) NewDecoder(r io.Reader) Decoder {
-	return json.NewDecoder(r)
+func (c CodecJSON) Decode(r io.Reader, v any) error {
+	return json.NewDecoder(r).Decode(v)
 }
