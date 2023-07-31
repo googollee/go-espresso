@@ -83,6 +83,7 @@ const (
 	BindPathParam BindType = iota
 	BindFormParam
 	BindQueryParam
+	BindHeadParam
 )
 
 func (b BindType) String() string {
@@ -93,6 +94,8 @@ func (b BindType) String() string {
 		return "bind form"
 	case BindQueryParam:
 		return "bind query"
+	case BindHeadParam:
+		return "bind head"
 	}
 	panic("bind unknown type")
 }

@@ -29,20 +29,7 @@ func New() *Server {
 
 func Default() *Server {
 	ret := New()
-	ret.Use(
-		Logger(
-			LogWithMethod(),
-			LogWithPath(),
-			LogWithMessage(
-				func(Context) string { return "received" },
-				func(ctx Context) string {
-					if ctx.Err() != nil {
-						return "error: " + ctx.Err().Error()
-					}
-					return "succeeded"
-				},
-			),
-		))
+	ret.Use(Logger())
 
 	return ret
 }

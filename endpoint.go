@@ -9,6 +9,7 @@ type EndpointBuilder interface {
 	BindPath(key string, v any, opts ...BindOption) EndpointBuilder
 	BindForm(key string, v any, opts ...BindOption) EndpointBuilder
 	BindQuery(key string, v any, opts ...BindOption) EndpointBuilder
+	BindHead(key string, v any, opts ...BindOption) EndpointBuilder
 	End() BindErrors
 }
 
@@ -18,6 +19,7 @@ type Endpoint struct {
 	PathParams  map[string]BindParam
 	QueryParams map[string]BindParam
 	FormParams  map[string]BindParam
+	HeadParams  map[string]BindParam
 }
 
 type endpointBinder struct {
@@ -69,6 +71,19 @@ func (e *endpointBinder) BindQuery(key string, v any, opts ...BindOption) Endpoi
 	return e
 }
 
+func (e *endpointBinder) BindHead(key string, v any, opts ...BindOption) EndpointBuilder {
+	bindParam := e.endpoint.HeadParams[key]
+	req := e.context.request
+
+	str := req.Header.Get(key)
+	if err := bindParam.fn(e.context, v, str); err != nil {
+		e.err = append(e.err, newBindError(bindParam, err))
+		return e
+	}
+
+	return e
+}
+
 func (e *endpointBinder) End() BindErrors {
 	if len(e.err) != 0 {
 		return e.err
@@ -109,6 +124,14 @@ func (e *endpointBuilder) BindQuery(key string, v any, opts ...BindOption) Endpo
 	bind := e.bindParam(key, BindQueryParam, v, opts)
 	if bind != nil {
 		e.addBindParam(&e.endpoint.QueryParams, key, *bind)
+	}
+	return e
+}
+
+func (e *endpointBuilder) BindHead(key string, v any, opts ...BindOption) EndpointBuilder {
+	bind := e.bindParam(key, BindHeadParam, v, opts)
+	if bind != nil {
+		e.addBindParam(&e.endpoint.HeadParams, key, *bind)
 	}
 	return e
 }

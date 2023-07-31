@@ -1,6 +1,8 @@
 package espresso
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"reflect"
 	"strings"
@@ -30,8 +32,10 @@ func (g *Group) HandleAll(svc any) {
 	v := reflect.ValueOf(svc)
 
 	for i := 0; i < v.NumMethod(); i++ {
-		fn, ok := v.Method(i).Interface().(HandleFunc)
+		method := v.Method(i).Interface()
+		fn, ok := method.(func(Context) error)
 		if !ok {
+			fmt.Printf("ignore %T\n", method)
 			continue
 		}
 
@@ -63,6 +67,7 @@ func (g *Group) HandleFunc(fn HandleFunc) {
 func (g *Group) registerHandle(endpoint *Endpoint, fn HandleFunc) {
 	g.server.endpoints = append(g.server.endpoints, *endpoint)
 
+	Info(context.Background(), "Register handle func", "method", endpoint.Method, "path", endpoint.Path, "handle", fmt.Sprintf("%T", fn))
 	g.server.router.Handle(endpoint.Method, endpoint.Path, func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		ctx := runtimeContext{
 			Context:        r.Context(),
