@@ -10,6 +10,7 @@ import (
 
 type Context interface {
 	context.Context
+	InjectValue(key InjectKey, v any)
 	WithContext(ctx context.Context) Context
 	Endpoint(method, path string) EndpointBuilder
 
@@ -21,10 +22,6 @@ type Context interface {
 }
 
 type InjectKey string
-
-type Injecting interface {
-	InjectValue(key InjectKey, value any)
-}
 
 type runtimeContext struct {
 	context.Context
@@ -111,6 +108,10 @@ func (c *registerContext) Endpoint(method, path string) EndpointBuilder {
 	return &endpointBuilder{
 		endpoint: c.endpoint,
 	}
+}
+
+func (c *registerContext) InjectValue(key InjectKey, v any) {
+	panic(errRegisterContextCall)
 }
 
 func (c *registerContext) WithContext(ctx context.Context) Context {

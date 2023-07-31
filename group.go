@@ -14,12 +14,16 @@ type Group struct {
 	server      *Server
 }
 
-func (g *Group) WithPrefix(path string, middleware ...HandleFunc) *Group {
+func (g *Group) WithPrefix(path string) *Group {
 	return &Group{
 		prefix:      strings.TrimRight(g.prefix, "/") + "/" + strings.Trim(path, "/"),
-		middlewares: append(g.middlewares[0:len(g.middlewares)], middleware...),
+		middlewares: g.middlewares[0:len(g.middlewares)],
 		server:      g.server,
 	}
+}
+
+func (g *Group) Use(middleware ...HandleFunc) {
+	g.middlewares = append(g.middlewares, middleware...)
 }
 
 func (g *Group) HandleAll(svc any) {
