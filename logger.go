@@ -37,7 +37,7 @@ type LoggerOption func(*logger)
 
 func Logger(option ...LoggerOption) HandleFunc {
 	logger := logger{
-		slogger: slog.Default(),
+		slogger: defaultLogger,
 	}
 
 	for _, op := range option {
