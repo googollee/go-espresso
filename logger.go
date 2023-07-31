@@ -100,12 +100,12 @@ func (l *logger) handle(ctx Context) error {
 	ctx.InjectValue(loggerKey, logger)
 
 	if l.startMessage != nil {
-		logger.InfoCtx(ctx, l.startMessage(ctx))
+		Info(ctx, l.startMessage(ctx))
 	}
 
 	defer func() {
 		if l.endMessage != nil {
-			logger.InfoCtx(ctx, l.endMessage(ctx))
+			Info(ctx, l.endMessage(ctx))
 		}
 	}()
 
