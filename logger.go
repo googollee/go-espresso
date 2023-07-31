@@ -2,6 +2,7 @@ package espresso
 
 import (
 	"context"
+	"net/http"
 	"time"
 
 	"golang.org/x/exp/slog"
@@ -29,12 +30,7 @@ func Error(ctx context.Context, msg string, args ...any) {
 }
 
 type logger struct {
-	slogger      *slog.Logger
-	withMethod   bool
-	withPath     bool
-	withArgs     []any
-	startMessage func(Context) string
-	endMessage   func(Context) string
+	slogger *slog.Logger
 }
 
 type LoggerOption func(*logger)
@@ -57,56 +53,28 @@ func LogWithSlog(log *slog.Logger) LoggerOption {
 	}
 }
 
-func LogWithArgs(args ...any) LoggerOption {
-	return func(l *logger) {
-		l.withArgs = args
-	}
-}
-
-func LogWithMethod() LoggerOption {
-	return func(l *logger) {
-		l.withMethod = true
-	}
-}
-
-func LogWithPath() LoggerOption {
-	return func(l *logger) {
-		l.withPath = true
-	}
-}
-
-func LogWithMessage(start, end func(Context) string) LoggerOption {
-	return func(l *logger) {
-		l.startMessage = start
-		l.endMessage = end
-	}
-}
-
 func (l *logger) handle(ctx Context) error {
 	req := ctx.Request()
 
 	args := []any{"span", time.Now().Unix()}
-	if l.withMethod {
-		args = append(args, "method", req.Method)
-	}
-	if l.withPath {
-		args = append(args, "path", req.URL.Path)
-	}
-	if len(l.withArgs) > 0 {
-		args = append(args, l.withArgs...)
-	}
+	args = append(args, "method", req.Method)
+	args = append(args, "path", req.URL.Path)
 
 	logger := l.slogger.With(args)
 	ctx.InjectValue(loggerKey, logger)
 
-	if l.startMessage != nil {
-		Info(ctx, l.startMessage(ctx))
-	}
+	Info(ctx, "received")
 
 	defer func() {
-		if l.endMessage != nil {
-			Info(ctx, l.endMessage(ctx))
+		if err := ctx.Err(); err != nil {
+			code := http.StatusInternalServerError
+			if hc, ok := err.(HTTPCoder); ok {
+				code = hc.HTTPCode()
+			}
+			Error(ctx, "done with error", "code", code, "error", err)
+			return
 		}
+		Info(ctx, "done")
 	}()
 
 	ctx.Next()
