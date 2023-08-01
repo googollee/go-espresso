@@ -12,19 +12,19 @@ var (
 )
 
 func Debug(ctx context.Context, msg string, args ...any) {
-	grabLogger(ctx).DebugCtx(ctx, msg, args...)
+	grabLogger(ctx).DebugContext(ctx, msg, args...)
 }
 
 func Info(ctx context.Context, msg string, args ...any) {
-	grabLogger(ctx).InfoCtx(ctx, msg, args...)
+	grabLogger(ctx).InfoContext(ctx, msg, args...)
 }
 
 func Warn(ctx context.Context, msg string, args ...any) {
-	grabLogger(ctx).WarnCtx(ctx, msg, args...)
+	grabLogger(ctx).WarnContext(ctx, msg, args...)
 }
 
 func Error(ctx context.Context, msg string, args ...any) {
-	grabLogger(ctx).ErrorCtx(ctx, msg, args...)
+	grabLogger(ctx).ErrorContext(ctx, msg, args...)
 }
 
 func grabLogger(ctx context.Context) *slog.Logger {
