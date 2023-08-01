@@ -2,8 +2,6 @@ package espresso
 
 import (
 	"net/http"
-	"reflect"
-	"runtime"
 	"time"
 
 	"github.com/julienschmidt/httprouter"
@@ -11,6 +9,8 @@ import (
 )
 
 type HandleFunc func(Context) error
+
+type ServerOption func(*Server) error
 
 type Server struct {
 	logger *slog.Logger
@@ -20,7 +20,7 @@ type Server struct {
 	router    *httprouter.Router
 }
 
-func New() *Server {
+func New(opts ...ServerOption) (*Server, error) {
 	ret := &Server{
 		router: httprouter.New(),
 		logger: defaultLogger,
@@ -31,7 +31,24 @@ func New() *Server {
 		server: ret,
 	}
 
-	return ret
+	for _, opt := range opts {
+		if err := opt(ret); err != nil {
+			return nil, err
+		}
+	}
+
+	return ret, nil
+}
+
+func WithLog(logger *slog.Logger) ServerOption {
+	return func(s *Server) error {
+		if s == nil {
+			return nil
+		}
+
+		s.logger = logger
+		return nil
+	}
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -41,10 +58,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *Server) ListenAndServe(addr string) error {
 	s.logger.Info("Launch espresso server", "addr", addr)
 	return http.ListenAndServe(addr, s.router)
-}
-
-func funcName(v any) string {
-	return runtime.FuncForPC(reflect.ValueOf(v).Pointer()).Name()
 }
 
 func (s *Server) registerEndpoint(endpoint *Endpoint, middle []HandleFunc, fn HandleFunc, fnSignature string) {
@@ -68,7 +81,7 @@ func (s *Server) registerEndpoint(endpoint *Endpoint, middle []HandleFunc, fn Ha
 			responseWriter: w,
 			pathParams:     p,
 			injectedValues: map[InjectKey]any{
-				loggerKey: logger,
+				KeyLogger: logger,
 			},
 			endpoint: endpoint,
 			handlers: handlers,

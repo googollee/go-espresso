@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	svr := espresso.New()
+	svr, _ := espresso.New()
 	rest := restapi.NewService(
 		restapi.User{Email: "person1@domain.com", Password: "123456"},
 		restapi.User{Email: "person2@domain.com", Password: "somepass"},
