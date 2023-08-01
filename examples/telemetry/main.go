@@ -3,16 +3,14 @@
 package main
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/googollee/go-espresso"
-	log "github.com/googollee/go-espresso/log"
+	"github.com/googollee/go-espresso/log"
 	prometheus "github.com/googollee/go-espresso/monitoring/prometheus"
 	openapi "github.com/googollee/go-espresso/openapi"
 	tracing "github.com/googollee/go-espresso/tracing"
 	opentelemetry "github.com/googollee/go-espresso/tracing/opentelemetry"
-	"golang.org/x/exp/slog"
 )
 
 var rpcCalls = prometheus.IntGauge("rpcCalls")
@@ -21,29 +19,29 @@ type Data struct{}
 
 type Service struct{}
 
-func (s *Service) Create(ctx espresso.Context[Data]) error {
-	return espresso.Procedure(ctx, s.Create)
+func (s *Service) Create(ctx espresso.Context) error {
+	return espresso.Produce(ctx, s.create)
 }
 
-func (s *Service) create(ctx context.Context, arg int) (string, error) {
+func (s *Service) create(ctx espresso.Context, arg int) (string, error) {
 	if err := ctx.Endpoint(http.MethodPost, "/service").End(); err != nil {
 		return "", espresso.ErrWithStatus(http.StatusBadRequest, err)
 	}
 
 	rpcCalls.Add(1)
 
-	ctx, span := tracing.Start(ctx)
-	defer span.End()
+	ctx, done := tracing.Start(ctx)
+	defer done()
 
 	log.Info(ctx, "in create")
 	log.Debug(ctx, "input", "arg", arg)
 
 	// or:
 	// req, err := tracing.NewHTTPRequest(http.MethodPost, "", nil)
-	req, err := http.NewRequest(http.MethodPost, "", nil)
+	req, _ := http.NewRequest(http.MethodPost, "", nil)
 	tracing.Inject(ctx, req.Header)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, _ := http.DefaultClient.Do(req)
 	defer resp.Body.Close()
 
 	return "", nil
@@ -52,8 +50,8 @@ func (s *Service) create(ctx context.Context, arg int) (string, error) {
 func main() {
 	svc := &Service{}
 
-	svr := espresso.Default().With(
-		log.New(slog.Default()),
+	svr, _ := espresso.New()
+	svr.With(
 		prometheus.New("/metrics"),
 		opentelemetry.New("https://url"),
 		openapi.New("/spec"),
