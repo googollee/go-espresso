@@ -70,7 +70,6 @@ func (s *Service) auth(user *User) func(espresso.Context, string) error {
 }
 
 func (s *Service) bindPathBlog(user User, blog *Blog) func(ctx espresso.Context, id int) error {
-
 	return func(ctx espresso.Context, id int) error {
 		b, ok := s.blogs[id]
 		if !ok {
