@@ -33,7 +33,7 @@ type runtimeContext struct {
 	endpoint       *Endpoint
 	abort          bool
 	handlers       []HandleFunc
-	err            error
+	err            *error
 }
 
 func (c *runtimeContext) Value(key any) any {
@@ -79,7 +79,7 @@ func (c *runtimeContext) Abort() {
 }
 
 func (c *runtimeContext) Error() error {
-	return c.err
+	return *c.err
 }
 
 func (c *runtimeContext) Next() {
@@ -88,7 +88,7 @@ func (c *runtimeContext) Next() {
 		c.handlers = c.handlers[1:]
 
 		if err := handler(c); err != nil {
-			c.err = err
+			*c.err = err
 			c.abort = true
 		}
 	}

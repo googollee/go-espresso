@@ -137,7 +137,7 @@ func (s *Service) DeleteBlog(ctx espresso.Context) error {
 func (s *Service) deleteBlog(ctx espresso.Context) (*Blog, error) {
 	var user User
 	var blog Blog
-	if err := ctx.Endpoint(http.MethodGet, "/blogs/:id").
+	if err := ctx.Endpoint(http.MethodDelete, "/blogs/:id").
 		BindHead("Authorization", s.auth(&user)).
 		BindPath("id", s.bindPathBlog(user, &blog)).
 		End(); err != nil {
