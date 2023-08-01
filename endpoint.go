@@ -32,7 +32,7 @@ func (e *endpointBinder) BindPath(key string, v any, opts ...BindOption) Endpoin
 	bindParam := e.endpoint.PathParams[key]
 	str := e.context.pathParams.ByName(key)
 
-	if err := bindParam.fn(e.context, v, str); err != nil {
+	if err := bindParam.fn(v, str); err != nil {
 		e.err = append(e.err, newBindError(bindParam, err))
 		return e
 	}
@@ -50,7 +50,7 @@ func (e *endpointBinder) BindForm(key string, v any, opts ...BindOption) Endpoin
 	}
 
 	str := req.FormValue(key)
-	if err := bindParam.fn(e.context, v, str); err != nil {
+	if err := bindParam.fn(v, str); err != nil {
 		e.err = append(e.err, newBindError(bindParam, err))
 		return e
 	}
@@ -63,7 +63,7 @@ func (e *endpointBinder) BindQuery(key string, v any, opts ...BindOption) Endpoi
 	req := e.context.request
 
 	str := req.URL.Query().Get(key)
-	if err := bindParam.fn(e.context, v, str); err != nil {
+	if err := bindParam.fn(v, str); err != nil {
 		e.err = append(e.err, newBindError(bindParam, err))
 		return e
 	}
@@ -76,7 +76,7 @@ func (e *endpointBinder) BindHead(key string, v any, opts ...BindOption) Endpoin
 	req := e.context.request
 
 	str := req.Header.Get(key)
-	if err := bindParam.fn(e.context, v, str); err != nil {
+	if err := bindParam.fn(v, str); err != nil {
 		e.err = append(e.err, newBindError(bindParam, err))
 		return e
 	}

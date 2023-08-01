@@ -1,7 +1,6 @@
 package espresso
 
 import (
-	"context"
 	"fmt"
 	"net/url"
 	"reflect"
@@ -49,7 +48,7 @@ func (b *BindParam) bind(ctx Context, params httprouter.Params, v any) error {
 
 func (b *BindParam) bindPath(ctx Context, params httprouter.Params, v any) error {
 	str := params.ByName(b.Key)
-	return b.fn(ctx, v, str)
+	return b.fn(v, str)
 }
 
 func (b *BindParam) bindForm(ctx Context, v any) error {
@@ -73,7 +72,7 @@ func (b *BindParam) bindValues(ctx Context, values url.Values, v any) error {
 		return nil
 	}
 
-	return b.fn(ctx, v, params[0])
+	return b.fn(v, params[0])
 }
 
 // BindType describes the type of bind.
@@ -150,14 +149,14 @@ func (e BindErrors) Unwrap() []error {
 	return ret
 }
 
-type bindFunc func(Context, any, string) error
+type bindFunc func(any, string) error
 
 type integer interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64
 }
 
 func bindInt[T integer](bitSize int) (reflect.Type, bindFunc) {
-	return reflect.TypeOf(T(0)), func(ctx Context, v any, param string) error {
+	return reflect.TypeOf(T(0)), func(v any, param string) error {
 		i, err := strconv.ParseInt(param, 10, bitSize)
 		if err != nil {
 			return err
@@ -168,27 +167,12 @@ func bindInt[T integer](bitSize int) (reflect.Type, bindFunc) {
 	}
 }
 
-func bindIntFunc[T integer](bitSize int) (reflect.Type, bindFunc) {
-	typ, f := bindInt[T](bitSize)
-	return typ, func(ctx Context, v any, param string) error {
-		var i T
-		if err := f(ctx, &i, param); err != nil {
-			return err
-		}
-		f := v.(func(context.Context, T) error)
-		if err := f(ctx, i); err != nil {
-			return err
-		}
-		return nil
-	}
-}
-
 type uinteger interface {
 	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64
 }
 
 func bindUint[T uinteger](bitSize int) (reflect.Type, bindFunc) {
-	return reflect.TypeOf(T(0)), func(ctx Context, v any, param string) error {
+	return reflect.TypeOf(T(0)), func(v any, param string) error {
 		i, err := strconv.ParseUint(param, 10, bitSize)
 		if err != nil {
 			return err
@@ -199,27 +183,12 @@ func bindUint[T uinteger](bitSize int) (reflect.Type, bindFunc) {
 	}
 }
 
-func bindUintFunc[T uinteger](bitSize int) (reflect.Type, bindFunc) {
-	typ, f := bindUint[T](bitSize)
-	return typ, func(ctx Context, v any, param string) error {
-		var u T
-		if err := f(ctx, &u, param); err != nil {
-			return err
-		}
-		f := v.(func(context.Context, T) error)
-		if err := f(ctx, u); err != nil {
-			return err
-		}
-		return nil
-	}
-}
-
 type float interface {
 	~float32 | ~float64
 }
 
 func bindFloat[T float](bitSize int) (reflect.Type, bindFunc) {
-	return reflect.TypeOf(T(0)), func(ctx Context, v any, param string) error {
+	return reflect.TypeOf(T(0)), func(v any, param string) error {
 		i, err := strconv.ParseFloat(param, bitSize)
 		if err != nil {
 			return err
@@ -230,40 +199,10 @@ func bindFloat[T float](bitSize int) (reflect.Type, bindFunc) {
 	}
 }
 
-func bindFloatFunc[T float](bitSize int) (reflect.Type, bindFunc) {
-	typ, f := bindFloat[T](bitSize)
-	return typ, func(ctx Context, v any, param string) error {
-		var fv T
-		if err := f(ctx, &fv, param); err != nil {
-			return err
-		}
-		fn := v.(func(context.Context, T) error)
-		if err := fn(ctx, fv); err != nil {
-			return err
-		}
-		return nil
-	}
-}
-
 func bindString[T ~string]() (reflect.Type, bindFunc) {
-	return reflect.TypeOf(T("")), func(ctx Context, v any, param string) error {
+	return reflect.TypeOf(T("")), func(v any, param string) error {
 		p := v.(*T)
 		*p = T(param)
-		return nil
-	}
-}
-
-func bindStringFunc[T ~string]() (reflect.Type, bindFunc) {
-	typ, f := bindString[T]()
-	return typ, func(ctx Context, v any, param string) error {
-		var s T
-		if err := f(ctx, &s, param); err != nil {
-			return err
-		}
-		f := v.(func(Context, T) error)
-		if err := f(ctx, s); err != nil {
-			return err
-		}
 		return nil
 	}
 }
@@ -296,33 +235,6 @@ func getBindFunc(v any) (reflect.Type, bindFunc) {
 		return bindFloat[float32](32)
 	case *float64:
 		return bindFloat[float64](64)
-
-	case func(Context, string) error:
-		return bindStringFunc[string]()
-	case func(Context, int) error:
-		return bindIntFunc[int](int(reflect.TypeOf(int(0)).Size()) * 8)
-	case func(Context, int8) error:
-		return bindIntFunc[int8](8)
-	case func(Context, int16) error:
-		return bindIntFunc[int16](16)
-	case func(Context, int32) error:
-		return bindIntFunc[int32](32)
-	case func(Context, int64) error:
-		return bindIntFunc[int64](64)
-	case func(Context, uint) error:
-		return bindUintFunc[uint](int(reflect.TypeOf(uint(0)).Size()) * 8)
-	case func(Context, uint8) error:
-		return bindUintFunc[uint8](8)
-	case func(Context, uint16) error:
-		return bindUintFunc[uint16](16)
-	case func(Context, uint32) error:
-		return bindUintFunc[uint32](32)
-	case func(Context, uint64) error:
-		return bindUintFunc[uint64](64)
-	case func(Context, float32) error:
-		return bindFloatFunc[float32](32)
-	case func(Context, float64) error:
-		return bindFloatFunc[float64](64)
 	}
 
 	return nil, nil

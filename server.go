@@ -1,7 +1,6 @@
 package espresso
 
 import (
-	"errors"
 	"net/http"
 	"reflect"
 	"runtime"
@@ -97,12 +96,8 @@ func (s *Server) done(ctx *runtimeContext, panicErr any, runtimeError error) {
 	}
 	if fail != nil {
 		code := http.StatusInternalServerError
-		if err, ok := fail.(error); ok {
-			var coder HTTPCoder
-			if errors.As(err, &coder) {
-				code = coder.HTTPCode()
-				fail = coder
-			}
+		if coder, ok := fail.(HTTPCoder); ok {
+			code = coder.HTTPCode()
 		}
 
 		Error(ctx, msg, "code", code, "error", fail)
