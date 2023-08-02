@@ -4,42 +4,30 @@ type HTTPCoder interface {
 	HTTPCode() int
 }
 
-type HTTPIgnore interface {
-	Ignore() bool
-}
-
 func ErrWithStatus(code int, err error) error {
 	return &httpError{
-		error:   err,
-		Code:    code,
 		Message: err.Error(),
-	}
-}
 
-func ErrWithIgnore(err error) error {
-	return httpError{
-		error:   err,
-		Message: err.Error(),
-		ignore:  true,
+		err:  err,
+		code: code,
 	}
 }
 
 type httpError struct {
-	error   `json:"-"`
-	Code    int    `json:"-"`
-	Message string `json:"message"`
+	Message string
 
-	ignore bool
+	code int
+	err  error
+}
+
+func (e httpError) Error() string {
+	return e.err.Error()
 }
 
 func (e httpError) HTTPCode() int {
-	return e.Code
-}
-
-func (e httpError) Ignore() bool {
-	return e.ignore
+	return e.code
 }
 
 func (e httpError) Unwrap() error {
-	return e.error
+	return e.err
 }
