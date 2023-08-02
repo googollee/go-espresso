@@ -37,7 +37,7 @@ func WithResponseWriter(ctx Context, w http.ResponseWriter) Context {
 	return &ret
 }
 
-func WithLogger(ctx Context, args ...any) Context {
+func WithLogAttr(ctx Context, args ...any) Context {
 	rCtx := getRuntimeContext(ctx)
 
 	ret := *rCtx

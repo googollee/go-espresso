@@ -101,9 +101,7 @@ func (s *Server) registerEndpoint(endpoint *Endpoint, middle []HandleFunc, fn Ha
 }
 
 func (s *Server) done(ctx *runtimeContext, w *responseWriter, panicErr any, runtimeError error) {
-	defer func() {
-		Info(ctx, "Response", "code", w.responseCode)
-	}()
+	defer w.logCode(ctx)
 
 	msg := "Panic"
 	fail := panicErr

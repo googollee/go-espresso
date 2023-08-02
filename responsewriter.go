@@ -1,6 +1,7 @@
 package espresso
 
 import (
+	"context"
 	"net/http"
 
 	"golang.org/x/exp/slog"
@@ -35,4 +36,8 @@ func (w *responseWriter) ensureWriteHeader() {
 	if !w.wroteHeader {
 		w.WriteHeader(http.StatusOK)
 	}
+}
+
+func (w *responseWriter) logCode(ctx context.Context) {
+	Info(ctx, "Response", "code", w.responseCode)
 }
