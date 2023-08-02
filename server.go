@@ -74,32 +74,36 @@ func (s *Server) registerEndpoint(endpoint *Endpoint, middle []HandleFunc, fn Ha
 		)
 
 		var err error
+		respWriter := responseWriter{
+			ResponseWriter: w,
+			logger:         logger,
+		}
 
 		ctx := runtimeContext{
 			Context:        r.Context(),
 			request:        r,
-			responseWriter: w,
+			responseWriter: &respWriter,
 			pathParams:     p,
-			injectedValues: map[InjectKey]any{
-				KeyLogger: logger,
-			},
-			endpoint: endpoint,
-			handlers: handlers,
-			err:      &err,
+			logger:         logger,
+			endpoint:       endpoint,
+			handlers:       handlers,
+			err:            &err,
 		}
 
 		defer func() {
-			s.done(&ctx, recover(), err)
+			s.done(&ctx, &respWriter, recover(), err)
 		}()
 
-		Info(&ctx, "Received request")
+		Info(&ctx, "Receive")
 
 		ctx.Next()
 	})
 }
 
-func (s *Server) done(ctx *runtimeContext, panicErr any, runtimeError error) {
-	w := ctx.ResponseWriter()
+func (s *Server) done(ctx *runtimeContext, w *responseWriter, panicErr any, runtimeError error) {
+	defer func() {
+		Info(ctx, "Response", "code", w.responseCode)
+	}()
 
 	msg := "Panic"
 	fail := panicErr
@@ -107,17 +111,26 @@ func (s *Server) done(ctx *runtimeContext, panicErr any, runtimeError error) {
 		msg = "Error"
 		fail = runtimeError
 	}
+
+	if fail != nil {
+		Error(ctx, msg, "error", fail)
+	}
+
+	if w.wroteHeader {
+		return
+	}
+
 	if fail != nil {
 		code := http.StatusInternalServerError
 		if coder, ok := fail.(HTTPCoder); ok {
 			code = coder.HTTPCode()
 		}
 
-		Error(ctx, msg, "code", code, "error", fail)
 		w.WriteHeader(code)
-		_ = DefaultCodec.Encode(w, fail)
+		if err := DefaultCodec.Encode(w, fail); err != nil {
+			Error(ctx, "Write response error", "error", err)
+		}
 	}
 
-	Info(ctx, "Done")
-
+	w.ensureWriteHeader()
 }

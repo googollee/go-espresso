@@ -7,7 +7,6 @@ import (
 )
 
 var (
-	KeyLogger     = InjectKey("espresso.log.Log")
 	defaultLogger = slog.Default()
 )
 
@@ -28,11 +27,8 @@ func Error(ctx context.Context, msg string, args ...any) {
 }
 
 func grabLogger(ctx context.Context) *slog.Logger {
-	v := ctx.Value(KeyLogger)
-	if v != nil {
-		if l, ok := v.(*slog.Logger); ok {
-			return l
-		}
+	if rCtx, ok := ctx.(Context); ok {
+		return rCtx.Logger()
 	}
 
 	return defaultLogger

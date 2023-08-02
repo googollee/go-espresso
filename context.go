@@ -6,14 +6,14 @@ import (
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
+	"golang.org/x/exp/slog"
 )
 
 type Context interface {
 	context.Context
-	InjectValue(key InjectKey, v any)
-	WithContext(ctx context.Context) Context
 	Endpoint(method, path string) EndpointBuilder
 
+	Logger() *slog.Logger
 	Request() *http.Request
 	ResponseWriter() http.ResponseWriter
 	Abort()
@@ -21,7 +21,31 @@ type Context interface {
 	Next()
 }
 
-type InjectKey string
+func WithContext(ctx Context, new context.Context) Context {
+	rCtx := getRuntimeContext(ctx)
+
+	ret := *rCtx
+	ret.Context = new
+	return &ret
+}
+
+func WithResponseWriter(ctx Context, w http.ResponseWriter) Context {
+	rCtx := getRuntimeContext(ctx)
+
+	ret := *rCtx
+	ret.responseWriter = w
+	return &ret
+}
+
+func WithLogger(ctx Context, args ...any) Context {
+	rCtx := getRuntimeContext(ctx)
+
+	ret := *rCtx
+	ret.logger = rCtx.logger.With(args...)
+	return &ret
+}
+
+type ContextKey string
 
 type runtimeContext struct {
 	context.Context
@@ -29,28 +53,20 @@ type runtimeContext struct {
 	responseWriter http.ResponseWriter
 	pathParams     httprouter.Params
 
-	injectedValues map[InjectKey]any
-	endpoint       *Endpoint
-	abort          bool
-	handlers       []HandleFunc
-	err            *error
+	logger   *slog.Logger
+	endpoint *Endpoint
+	abort    bool
+	handlers []HandleFunc
+	err      *error
 }
 
-func (c *runtimeContext) Value(key any) any {
-	if str, ok := key.(InjectKey); ok {
-		if ret, ok := c.injectedValues[str]; ok {
-			return ret
-		}
+func getRuntimeContext(ctx Context) *runtimeContext {
+	rCtx, ok := ctx.(*runtimeContext)
+	if !ok {
+		panic(errRegisterContextCall)
 	}
 
-	return c.Context.Value(key)
-}
-
-func (c *runtimeContext) InjectValue(key InjectKey, v any) {
-	if c.injectedValues == nil {
-		c.injectedValues = make(map[InjectKey]any)
-	}
-	c.injectedValues[key] = v
+	return rCtx
 }
 
 func (c *runtimeContext) Endpoint(method, path string) EndpointBuilder {
@@ -60,10 +76,8 @@ func (c *runtimeContext) Endpoint(method, path string) EndpointBuilder {
 	}
 }
 
-func (c *runtimeContext) WithContext(ctx context.Context) Context {
-	ret := *c
-	ret.Context = ctx
-	return &ret
+func (c *runtimeContext) Logger() *slog.Logger {
+	return c.logger
 }
 
 func (c *runtimeContext) Request() *http.Request {
@@ -110,11 +124,7 @@ func (c *registerContext) Endpoint(method, path string) EndpointBuilder {
 	}
 }
 
-func (c *registerContext) InjectValue(key InjectKey, v any) {
-	panic(errRegisterContextCall)
-}
-
-func (c *registerContext) WithContext(ctx context.Context) Context {
+func (c *registerContext) Logger() *slog.Logger {
 	panic(errRegisterContextCall)
 }
 
