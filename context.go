@@ -45,8 +45,6 @@ func WithLogAttr(ctx Context, args ...any) Context {
 	return &ret
 }
 
-type ContextKey string
-
 type runtimeContext struct {
 	context.Context
 	request        *http.Request
