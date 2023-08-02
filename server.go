@@ -64,7 +64,7 @@ func (s *Server) registerEndpoint(endpoint *Endpoint, middle []HandleFunc, fn Ha
 	s.endpoints = append(s.endpoints, *endpoint)
 	handlers := append(middle[0:], fn)
 
-	s.logger.Info("Register handle func", "method", endpoint.Method, "path", endpoint.Path, "handler", fnSignature)
+	s.logger.Info("Register", "method", endpoint.Method, "path", endpoint.Path, "handler", fnSignature)
 
 	s.router.Handle(endpoint.Method, endpoint.Path, func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		logger := s.logger.With(
@@ -128,7 +128,7 @@ func (s *Server) done(ctx *runtimeContext, w *responseWriter, panicErr any, runt
 
 		w.WriteHeader(code)
 		if err := DefaultCodec.Encode(w, fail); err != nil {
-			Error(ctx, "Write response error", "error", err)
+			Error(ctx, "Write response", "error", err)
 		}
 	}
 
