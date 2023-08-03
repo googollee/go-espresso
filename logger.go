@@ -10,6 +10,17 @@ var (
 	defaultLogger = slog.Default()
 )
 
+func WithLog(logger *slog.Logger) ServerOption {
+	return func(s *Server) error {
+		if s == nil {
+			return nil
+		}
+
+		s.logger = logger
+		return nil
+	}
+}
+
 func Debug(ctx context.Context, msg string, args ...any) {
 	grabLogger(ctx).DebugContext(ctx, msg, args...)
 }

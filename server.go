@@ -25,6 +25,7 @@ func New(opts ...ServerOption) (*Server, error) {
 	ret := &Server{
 		router: httprouter.New(),
 		logger: defaultLogger,
+		codecs: defaultManager(),
 	}
 
 	ret.Group = Group{
@@ -39,17 +40,6 @@ func New(opts ...ServerOption) (*Server, error) {
 	}
 
 	return ret, nil
-}
-
-func WithLog(logger *slog.Logger) ServerOption {
-	return func(s *Server) error {
-		if s == nil {
-			return nil
-		}
-
-		s.logger = logger
-		return nil
-	}
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {

@@ -26,25 +26,24 @@ type codecManager struct {
 	all          map[string]Codec
 }
 
+func defaultManager() codecManager {
+	return codecManager{
+		defaultCodec: CodecJSON{},
+		all:          make(map[string]Codec),
+	}
+}
+
 func WithCodec(defaultCodec Codec, all map[string]Codec) ServerOption {
 	return func(s *Server) error {
 		if defaultCodec != nil {
 			s.codecs.defaultCodec = defaultCodec
 		}
 
-		s.codecs.appendCodecs(all)
+		for mime, codec := range all {
+			s.codecs.all[mime] = codec
+		}
 
 		return nil
-	}
-}
-
-func (m *codecManager) appendCodecs(all map[string]Codec) {
-	if m.all == nil {
-		m.all = make(map[string]Codec)
-	}
-
-	for mime, codec := range all {
-		m.all[mime] = codec
 	}
 }
 
