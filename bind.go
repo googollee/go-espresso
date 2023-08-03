@@ -22,6 +22,11 @@ func newBindParam(key string, typ BindType, v any) (BindParam, error) {
 	if fn == nil {
 		return BindParam{}, fmt.Errorf("not support to bind %s key %q to %T", typ, key, v)
 	}
+
+	if !typ.valid() {
+		return BindParam{}, fmt.Errorf("not support bind type %d", typ)
+	}
+
 	return BindParam{
 		Key:       key,
 		Type:      typ,
@@ -40,6 +45,10 @@ const (
 	BindHeadParam
 )
 
+func (b BindType) valid() bool {
+	return b.String() != "unknown type"
+}
+
 func (b BindType) String() string {
 	switch b {
 	case BindPathParam:
@@ -51,7 +60,7 @@ func (b BindType) String() string {
 	case BindHeadParam:
 		return "head"
 	}
-	panic("unknown type")
+	return "unknown type"
 }
 
 // BindError describes the error when binding a param.
