@@ -2,12 +2,9 @@ package espresso
 
 import (
 	"fmt"
-	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
-
-	"github.com/julienschmidt/httprouter"
 )
 
 type BindParam struct {
@@ -31,48 +28,6 @@ func newBindParam(key string, typ BindType, v any) (BindParam, error) {
 		ValueType: vt,
 		fn:        fn,
 	}, nil
-}
-
-func (b *BindParam) bind(ctx Context, params httprouter.Params, v any) error {
-	switch b.Type {
-	case BindPathParam:
-		return b.bindPath(ctx, params, v)
-	case BindFormParam:
-		return b.bindForm(ctx, v)
-	case BindQueryParam:
-		return b.bindQuery(ctx, v)
-	}
-
-	return fmt.Errorf("invalid bind type %s", b.Type)
-}
-
-func (b *BindParam) bindPath(ctx Context, params httprouter.Params, v any) error {
-	str := params.ByName(b.Key)
-	return b.fn(v, str)
-}
-
-func (b *BindParam) bindForm(ctx Context, v any) error {
-	req := ctx.Request()
-	if err := req.ParseForm(); err != nil {
-		return err
-	}
-
-	return b.bindValues(ctx, req.Form, v)
-}
-
-func (b *BindParam) bindQuery(ctx Context, v any) error {
-	req := ctx.Request()
-	query := req.URL.Query()
-	return b.bindValues(ctx, query, v)
-}
-
-func (b *BindParam) bindValues(ctx Context, values url.Values, v any) error {
-	params := values[b.Key]
-	if len(params) == 0 {
-		return nil
-	}
-
-	return b.fn(v, params[0])
 }
 
 // BindType describes the type of bind.
