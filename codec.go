@@ -7,11 +7,16 @@ import (
 )
 
 type Codec interface {
+	Mime() string
 	Encode(w io.Writer, v any) error
 	Decode(r io.Reader, v any) error
 }
 
 type CodecJSON struct{}
+
+func (c CodecJSON) Mime() string {
+	return "applicationi/json"
+}
 
 func (c CodecJSON) Encode(w io.Writer, v any) error {
 	return json.NewEncoder(w).Encode(v)
@@ -33,14 +38,14 @@ func defaultManager() codecManager {
 	}
 }
 
-func WithCodec(defaultCodec Codec, all map[string]Codec) ServerOption {
+func WithCodec(defaultCodec Codec, addons ...Codec) ServerOption {
 	return func(s *Server) error {
 		if defaultCodec != nil {
 			s.codecs.defaultCodec = defaultCodec
 		}
 
-		for mime, codec := range all {
-			s.codecs.all[mime] = codec
+		for _, codec := range addons {
+			s.codecs.all[codec.Mime()] = codec
 		}
 
 		return nil
@@ -48,9 +53,5 @@ func WithCodec(defaultCodec Codec, all map[string]Codec) ServerOption {
 }
 
 func (m *codecManager) decideCodec(r *http.Request) Codec {
-	if m.defaultCodec != nil {
-		return m.defaultCodec
-	}
-
-	return CodecJSON{}
+	return m.defaultCodec
 }

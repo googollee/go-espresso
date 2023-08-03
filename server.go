@@ -64,19 +64,20 @@ func (s *Server) registerEndpoint(endpoint *Endpoint, middle []HandleFunc, fn Ha
 			"path", r.URL.Path,
 		)
 
-		var err error
+		codec := s.codecs.decideCodec(r)
 		respWriter := responseWriter{
 			ResponseWriter: w,
 			logger:         logger,
 		}
 
+		var err error
 		ctx := runtimeContext{
 			Context:        r.Context(),
 			request:        r,
 			responseWriter: &respWriter,
 			pathParams:     p,
 			logger:         logger,
-			codec:          s.codecs.decideCodec(r),
+			codec:          codec,
 			endpoint:       endpoint,
 			handlers:       handlers,
 			err:            &err,
@@ -95,32 +96,35 @@ func (s *Server) registerEndpoint(endpoint *Endpoint, middle []HandleFunc, fn Ha
 func (s *Server) done(ctx *runtimeContext, w *responseWriter, panicErr any, runtimeError error) {
 	defer w.logCode(ctx)
 
-	msg := "Panic"
-	fail := panicErr
-	if fail == nil {
-		msg = "Error"
-		fail = runtimeError
+	var failed any
+
+	if runtimeError != nil {
+		failed = runtimeError
+		Error(ctx, "Error", "error", runtimeError)
 	}
 
-	if fail != nil {
-		Error(ctx, msg, "error", fail)
+	if panicErr != nil {
+		failed = panicErr
+		Error(ctx, "Panic", "recover", panicErr)
 	}
 
 	if w.wroteHeader {
 		return
 	}
 
-	if fail != nil {
-		code := http.StatusInternalServerError
-		if coder, ok := fail.(HTTPCoder); ok {
-			code = coder.HTTPCode()
-		}
-
-		w.WriteHeader(code)
-		if err := ctx.codec.Encode(w, fail); err != nil {
-			Error(ctx, "Write response", "error", err)
-		}
+	if failed == nil {
+		w.ensureWriteHeader()
+		return
 	}
 
-	w.ensureWriteHeader()
+	code := http.StatusInternalServerError
+	if coder, ok := failed.(HTTPCoder); ok {
+		code = coder.HTTPCode()
+	}
+
+	w.Header().Add("Content-Type", ctx.codec.Mime())
+	w.WriteHeader(code)
+	if err := ctx.codec.Encode(w, failed); err != nil {
+		Error(ctx, "Write response", "error", err)
+	}
 }

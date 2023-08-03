@@ -21,6 +21,7 @@ func Produce[Response, Request any](ctx Context, fn func(Context, Request) (Resp
 		return err
 	}
 
+	rCtx.responseWriter.Header().Add("Content-Type", codec.Mime())
 	rCtx.ResponseWriter().WriteHeader(http.StatusOK)
 	if err := codec.Encode(rCtx.ResponseWriter(), resp); err != nil {
 		return err
@@ -64,6 +65,7 @@ func Provide[Response any](ctx Context, fn func(Context) (Response, error)) erro
 		return err
 	}
 
+	rCtx.responseWriter.Header().Add("Content-Type", codec.Mime())
 	rCtx.ResponseWriter().WriteHeader(http.StatusOK)
 	if err := codec.Encode(rCtx.ResponseWriter(), resp); err != nil {
 		return err
