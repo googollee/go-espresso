@@ -52,6 +52,7 @@ type runtimeContext struct {
 	pathParams     httprouter.Params
 
 	logger   *slog.Logger
+	codec    Codec
 	endpoint *Endpoint
 	abort    bool
 	handlers []HandleFunc

@@ -14,6 +14,7 @@ type ServerOption func(*Server) error
 
 type Server struct {
 	logger *slog.Logger
+	codecs codecManager
 
 	Group
 	endpoints []Endpoint
@@ -85,6 +86,7 @@ func (s *Server) registerEndpoint(endpoint *Endpoint, middle []HandleFunc, fn Ha
 			responseWriter: &respWriter,
 			pathParams:     p,
 			logger:         logger,
+			codec:          s.codecs.decideCodec(r),
 			endpoint:       endpoint,
 			handlers:       handlers,
 			err:            &err,
@@ -125,7 +127,7 @@ func (s *Server) done(ctx *runtimeContext, w *responseWriter, panicErr any, runt
 		}
 
 		w.WriteHeader(code)
-		if err := DefaultCodec.Encode(w, fail); err != nil {
+		if err := ctx.codec.Encode(w, fail); err != nil {
 			Error(ctx, "Write response", "error", err)
 		}
 	}
