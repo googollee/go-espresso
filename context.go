@@ -51,12 +51,13 @@ type runtimeContext struct {
 	responseWriter http.ResponseWriter
 	pathParams     httprouter.Params
 
-	logger   *slog.Logger
-	codec    Codec
-	endpoint *Endpoint
-	abort    bool
-	handlers []HandleFunc
-	err      *error
+	logger    *slog.Logger
+	reqCodec  Codec
+	respCodec Codec
+	endpoint  *Endpoint
+	abort     bool
+	handlers  []HandleFunc
+	err       *error
 }
 
 func getRuntimeContext(ctx Context) *runtimeContext {

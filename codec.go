@@ -52,6 +52,8 @@ func WithCodec(defaultCodec Codec, addons ...Codec) ServerOption {
 	}
 }
 
-func (m *codecManager) decideCodec(r *http.Request) Codec {
-	return m.defaultCodec
+func (m *codecManager) decideCodec(r *http.Request) (request Codec, response Codec) {
+	reqCodec := r.Header.Get("Content-Type")
+	acceptCodec := r.Header.Get("Accept")
+	return m.defaultCodec, m.defaultCodec
 }

@@ -64,7 +64,7 @@ func (s *Server) registerEndpoint(endpoint *Endpoint, middle []HandleFunc, fn Ha
 			"path", r.URL.Path,
 		)
 
-		codec := s.codecs.decideCodec(r)
+		reqCodec, respCodec := s.codecs.decideCodec(r)
 		respWriter := responseWriter{
 			ResponseWriter: w,
 			logger:         logger,
@@ -77,7 +77,8 @@ func (s *Server) registerEndpoint(endpoint *Endpoint, middle []HandleFunc, fn Ha
 			responseWriter: &respWriter,
 			pathParams:     p,
 			logger:         logger,
-			codec:          codec,
+			reqCodec:       reqCodec,
+			respCodec:      respCodec,
 			endpoint:       endpoint,
 			handlers:       handlers,
 			err:            &err,
@@ -122,9 +123,10 @@ func (s *Server) done(ctx *runtimeContext, w *responseWriter, panicErr any, runt
 		code = coder.HTTPCode()
 	}
 
-	w.Header().Add("Content-Type", ctx.codec.Mime())
+	codec := ctx.respCodec
+	w.Header().Add("Content-Type", codec.Mime())
 	w.WriteHeader(code)
-	if err := ctx.codec.Encode(w, failed); err != nil {
+	if err := codec.Encode(w, failed); err != nil {
 		Error(ctx, "Write response", "error", err)
 	}
 }

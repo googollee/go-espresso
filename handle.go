@@ -11,8 +11,7 @@ func Produce[Response, Request any](ctx Context, fn func(Context, Request) (Resp
 		return nil
 	}
 
-	codec := rCtx.codec
-	if err := codec.Decode(rCtx.Request().Body, &req); err != nil {
+	if err := rCtx.reqCodec.Decode(rCtx.Request().Body, &req); err != nil {
 		return ErrWithStatus(http.StatusBadRequest, err)
 	}
 
@@ -21,9 +20,9 @@ func Produce[Response, Request any](ctx Context, fn func(Context, Request) (Resp
 		return err
 	}
 
-	rCtx.responseWriter.Header().Add("Content-Type", codec.Mime())
+	rCtx.responseWriter.Header().Add("Content-Type", rCtx.respCodec.Mime())
 	rCtx.ResponseWriter().WriteHeader(http.StatusOK)
-	if err := codec.Encode(rCtx.ResponseWriter(), resp); err != nil {
+	if err := rCtx.respCodec.Encode(rCtx.ResponseWriter(), resp); err != nil {
 		return err
 	}
 
@@ -39,8 +38,7 @@ func Consume[Request any](ctx Context, fn func(Context, Request) error) error {
 		return nil
 	}
 
-	codec := rCtx.codec
-	if err := codec.Decode(rCtx.Request().Body, &req); err != nil {
+	if err := rCtx.reqCodec.Decode(rCtx.Request().Body, &req); err != nil {
 		return ErrWithStatus(http.StatusBadRequest, err)
 	}
 
@@ -59,15 +57,14 @@ func Provide[Response any](ctx Context, fn func(Context) (Response, error)) erro
 		return nil
 	}
 
-	codec := rCtx.codec
 	resp, err := fn(rCtx)
 	if err != nil {
 		return err
 	}
 
-	rCtx.responseWriter.Header().Add("Content-Type", codec.Mime())
+	rCtx.responseWriter.Header().Add("Content-Type", rCtx.respCodec.Mime())
 	rCtx.ResponseWriter().WriteHeader(http.StatusOK)
-	if err := codec.Encode(rCtx.ResponseWriter(), resp); err != nil {
+	if err := rCtx.respCodec.Encode(rCtx.ResponseWriter(), resp); err != nil {
 		return err
 	}
 
