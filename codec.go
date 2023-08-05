@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"sort"
+
+	"github.com/timewasted/go-accept-headers"
 )
 
 type Codec interface {
@@ -53,7 +56,30 @@ func WithCodec(defaultCodec Codec, addons ...Codec) ServerOption {
 }
 
 func (m *codecManager) decideCodec(r *http.Request) (request Codec, response Codec) {
-	reqCodec := r.Header.Get("Content-Type")
-	acceptCodec := r.Header.Get("Accept")
-	return m.defaultCodec, m.defaultCodec
+	request = m.defaultCodec
+
+	reqMime := r.Header.Get("Content-Type")
+	if codec, ok := m.all[reqMime]; ok {
+		request = codec
+	}
+
+	response = request
+
+	acceptMime := r.Header.Get("Accept")
+	accepts := accept.Parse(acceptMime)
+	if len(accepts) > 0 {
+		sort.Slice(accepts, func(i, j int) bool {
+			return accepts[i].Q > accepts[j].Q
+		})
+		mime := accepts[0].Type + "/" + accepts[0].Subtype
+		if codec, ok := m.all[mime]; ok {
+			response = codec
+		}
+	}
+
+	if codec, ok := m.all[acceptMime]; ok {
+		response = codec
+	}
+
+	return
 }
