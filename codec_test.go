@@ -1,10 +1,41 @@
 package espresso
 
 import (
+	"bytes"
 	"io"
 	"net/http"
+	"reflect"
 	"testing"
 )
+
+func TestCodecJSON(t *testing.T) {
+	tests := []struct {
+		v any
+	}{
+		{1},
+	}
+
+	for _, tc := range tests {
+		jc := CodecJSON{}
+		var buf bytes.Buffer
+
+		if err := jc.Encode(&buf, tc.v); err != nil {
+			t.Errorf("CodecJSON.Encode(%v) error: %v", tc.v, err)
+			continue
+		}
+
+		vt := reflect.TypeOf(tc.v)
+		v := reflect.New(vt)
+		if err := jc.Decode(&buf, v.Interface()); err != nil {
+			t.Errorf("CodecJSON.Decode(%q) error: %v", buf.String(), err)
+			continue
+		}
+
+		if got, want := v.Elem().Interface(), tc.v; got != want {
+			t.Errorf("Encode(Decode(%v)) = %v, want: %v", tc.v, got, want)
+		}
+	}
+}
 
 type fakeCodec struct {
 	mime string
@@ -104,6 +135,32 @@ func TestCodecMore(t *testing.T) {
 			},
 			wantReqMime:  "application/json",
 			wantRespMime: "application/xml",
+		},
+		{
+			name: "ResponseWithNonexist",
+			headers: map[string]string{
+				"Accept": "application/nonexist",
+			},
+			wantReqMime:  "application/json",
+			wantRespMime: "application/json",
+		},
+		{
+			name: "RequestXMLResponseNonexist",
+			headers: map[string]string{
+				"Content-Type": "application/xml",
+				"Accept":       "application/nonexist",
+			},
+			wantReqMime:  "application/xml",
+			wantRespMime: "application/xml",
+		},
+		{
+			name: "RequestXMLResponseYaml",
+			headers: map[string]string{
+				"Content-Type": "application/xml",
+				"Accept":       "application/yaml",
+			},
+			wantReqMime:  "application/xml",
+			wantRespMime: "application/yaml",
 		},
 		{
 			name: "AllYAML",
