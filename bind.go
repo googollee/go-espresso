@@ -81,7 +81,7 @@ func newBindError(b BindParam, err error) BindError {
 }
 
 func (b BindError) Error() string {
-	return fmt.Sprintf("bind %s with name %s to type %s error: %v", b.BindType, b.Key, b.ValueType, b.Err)
+	return fmt.Sprintf("bind %s with name %q to type %s error: %v", b.BindType, b.Key, b.ValueType, b.Err)
 }
 
 func (b BindError) Unwrap() error {

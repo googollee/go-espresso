@@ -1,7 +1,9 @@
 package espresso
 
 import (
+	"errors"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -169,5 +171,65 @@ func TestBindParam(t *testing.T) {
 				t.Errorf("newBindParam().fn(new(%s), %q) = %v, want: %v", tc.valueType.String(), tc.valueString, got, want)
 			}
 		})
+	}
+}
+
+func TestBindError(t *testing.T) {
+	underErr := errors.New("my error")
+	bErr := newBindError(BindParam{
+		Key:       "key",
+		Type:      BindPathParam,
+		ValueType: reflect.TypeOf(""),
+	}, underErr)
+
+	var err error = bErr
+	for _, want := range []string{"name \"key\"", "bind path", "type string", "my error"} {
+		if got := err.Error(); !strings.Contains(got, want) {
+			t.Errorf("bErr.Error() = %q, want substring %q", got, want)
+		}
+	}
+
+	if !errors.Is(err, underErr) {
+		t.Errorf("errors.Is(err, underErr) = false, want: true")
+	}
+}
+
+func TestBindErrors(t *testing.T) {
+	under1 := errors.New("my error1")
+	under2 := errors.New("my error2")
+	under3 := errors.New("my error3")
+	bErrs := BindErrors{
+		newBindError(BindParam{
+			Key:       "key1",
+			Type:      BindPathParam,
+			ValueType: reflect.TypeOf(""),
+		}, under1),
+		newBindError(BindParam{
+			Key:       "key2",
+			Type:      BindQueryParam,
+			ValueType: reflect.TypeOf(1),
+		}, under2),
+		newBindError(BindParam{
+			Key:       "key3",
+			Type:      BindFormParam,
+			ValueType: reflect.TypeOf(true),
+		}, under3),
+	}
+
+	var err error = bErrs
+	for _, want := range []string{
+		"name \"key1\"", "bind path", "type string", "my error1",
+		"name \"key2\"", "bind query", "type int", "my error2",
+		"name \"key3\"", "bind form", "type bool", "my error3",
+	} {
+		if got := err.Error(); !strings.Contains(got, want) {
+			t.Errorf("bErr.Error() = %q, want substring %q", got, want)
+		}
+	}
+
+	for _, under := range []error{under1, under2, under3} {
+		if !errors.Is(err, under) {
+			t.Errorf("errors.Is(err, %v) = false, want: true", under)
+		}
 	}
 }
