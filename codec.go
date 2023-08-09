@@ -18,7 +18,7 @@ type Codec interface {
 type CodecJSON struct{}
 
 func (c CodecJSON) Mime() string {
-	return "applicationi/json"
+	return "application/json"
 }
 
 func (c CodecJSON) Encode(w io.Writer, v any) error {
@@ -67,18 +67,22 @@ func (m *codecManager) decideCodec(r *http.Request) (request Codec, response Cod
 
 	acceptMime := r.Header.Get("Accept")
 	accepts := accept.Parse(acceptMime)
-	if len(accepts) > 0 {
-		sort.Slice(accepts, func(i, j int) bool {
-			return accepts[i].Q > accepts[j].Q
-		})
-		mime := accepts[0].Type + "/" + accepts[0].Subtype
-		if codec, ok := m.all[mime]; ok {
-			response = codec
-		}
+	if len(accepts) == 0 {
+		return
 	}
 
-	if codec, ok := m.all[acceptMime]; ok {
-		response = codec
+	sort.Slice(accepts, func(i, j int) bool {
+		// Order: Q DESC
+		return accepts[i].Q > accepts[j].Q
+	})
+
+	for i := range accepts {
+		mime := accepts[i].Type + "/" + accepts[i].Subtype
+
+		if codec, ok := m.all[mime]; ok {
+			response = codec
+			break
+		}
 	}
 
 	return
