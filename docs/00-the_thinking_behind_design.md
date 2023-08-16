@@ -20,5 +20,6 @@ The result is `go-espresso`. This project follows guidelines below, to achieve p
 - Provide generics helpers to reduce scaffold codes and keep type-safe.
 - Integrate telemetry through middlewares.
 - Follow Go guidelines, as much as possible.
+- No reflecting when handling real requests.
 
 Please also check other documents about design and usage.
