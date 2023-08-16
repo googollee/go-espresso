@@ -12,7 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: [ '1.20', 'tip' ]
+        go:
+        - '1.21'
+        - '1.20'
+        - 'tip'
     steps:
     - uses: actions/checkout@v3
 
