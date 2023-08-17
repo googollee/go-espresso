@@ -8,7 +8,10 @@ package overall_test
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"sync"
 
 	"github.com/googollee/go-espresso"
@@ -16,9 +19,9 @@ import (
 
 // Definition of `Blog`
 type Blog struct {
-	ID      int
-	Title   string
-	Content string
+	ID      int    `json:"id"`
+	Title   string `json:"title"`
+	Content string `json:"content"`
 }
 
 // Definition of a service to store `Blog`s
@@ -64,7 +67,7 @@ func (s *Service) CreateBlog(ctx espresso.Context) error {
 }
 
 func (s *Service) createBlog(ctx espresso.Context, newBlog *Blog) (*Blog, error) {
-	if err := ctx.Endpoint(http.MethodPost, "/apis/blog").
+	if err := ctx.Endpoint(http.MethodPost, "/api/blogs").
 		End(); err != nil {
 		return nil, espresso.ErrWithStatus(http.StatusBadRequest, err)
 	}
@@ -80,13 +83,72 @@ func (s *Service) createBlog(ctx espresso.Context, newBlog *Blog) (*Blog, error)
 }
 
 // Register all endpoints and launch the server
-func OverallExample() {
+func LaunchServer() (addr string, cancel func()) {
 	server, _ := espresso.New()
 
 	service := &Service{
-		blogs: make(map[int]*Blog),
+		nextID: 1,
+		blogs:  make(map[int]*Blog),
+	}
+	server.HandleAll(service)
+
+	httpSvr := httptest.NewServer(server)
+	addr = httpSvr.URL
+	cancel = func() {
+		httpSvr.Close()
 	}
 
-	server.HandleAll(service)
-	_ = server.ListenAndServe(":8000")
+	return
+}
+
+func ExampleOverall() {
+	addr, cancel := LaunchServer()
+	defer cancel()
+
+	// Get a non-exist Blog web
+	{
+		resp, err := http.Get(addr + "/blogs/1")
+		if err != nil {
+			panic(err)
+		}
+
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		fmt.Println(resp.StatusCode, resp.Header.Get("Content-Type"), string(body))
+	}
+
+	// Create a Blog
+	{
+		resp, err := http.Post(addr+"/api/blogs", "application/json", strings.NewReader(`
+		{
+			"title": "A new web framework",
+			"content": "espresso is greate!"
+		}`))
+		if err != nil {
+			panic(err)
+		}
+
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		fmt.Println(resp.StatusCode, resp.Header.Get("Content-Type"), strings.TrimSpace(string(body)))
+	}
+
+	// Get the Blog web
+	{
+		resp, err := http.Get(addr + "/blogs/1")
+		if err != nil {
+			panic(err)
+		}
+
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		fmt.Println(resp.StatusCode, resp.Header.Get("Content-Type"), string(body))
+	}
+	// Output:
+	// 404 text/html <p>not found</p>
+	// 200 application/json {"id":1,"title":"A new web framework","content":"espresso is greate!"}
+	// 200 text/html <h1>A new web framework</h1><p>espresso is greate!</p>
 }
