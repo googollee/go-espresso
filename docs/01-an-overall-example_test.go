@@ -118,6 +118,19 @@ func ExampleOverall() {
 		fmt.Println(resp.StatusCode, resp.Header.Get("Content-Type"), string(body))
 	}
 
+	// Get with a bad request
+	{
+		resp, err := http.Get(addr + "/blogs/non_number")
+		if err != nil {
+			panic(err)
+		}
+
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		fmt.Println(resp.StatusCode, resp.Header.Get("Content-Type"), string(body))
+	}
+
 	// Create a Blog
 	{
 		resp, err := http.Post(addr+"/api/blogs", "application/json", strings.NewReader(`
@@ -149,6 +162,7 @@ func ExampleOverall() {
 	}
 	// Output:
 	// 404 text/html <p>not found</p>
+	// 400 text/html <p>bad request</p>
 	// 200 application/json {"id":1,"title":"A new web framework","content":"espresso is greate!"}
 	// 200 text/html <h1>A new web framework</h1><p>espresso is greate!</p>
 }
