@@ -2,7 +2,7 @@ package espresso
 
 import "net/http"
 
-func Produce[Response, Request any](ctx Context, fn func(Context, Request) (Response, error)) error {
+func Procedure[Response, Request any](ctx Context, fn func(Context, Request) (Response, error)) error {
 	var req Request
 
 	rCtx, ok := ctx.(*runtimeContext)
