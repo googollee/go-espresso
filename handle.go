@@ -1,6 +1,9 @@
 package espresso
 
-import "net/http"
+import (
+	"errors"
+	"net/http"
+)
 
 func Procedure[Response, Request any](ctx Context, fn func(Context, Request) (Response, error)) error {
 	var req Request
@@ -11,18 +14,32 @@ func Procedure[Response, Request any](ctx Context, fn func(Context, Request) (Re
 		return nil
 	}
 
-	if err := rCtx.reqCodec.Decode(rCtx.Request().Body, &req); err != nil {
-		return ErrWithStatus(http.StatusBadRequest, err)
+	err := rCtx.reqCodec.Decode(rCtx.Request().Body, &req)
+	if err != nil {
+		err = ErrWithStatus(http.StatusBadRequest, err)
 	}
 
-	resp, err := fn(rCtx, req)
-	if err != nil {
-		return err
+	var resp Response
+	if err == nil {
+		resp, err = fn(rCtx, req)
 	}
 
 	rCtx.responseWriter.Header().Add("Content-Type", rCtx.respCodec.Mime())
-	rCtx.ResponseWriter().WriteHeader(http.StatusOK)
-	if err := rCtx.respCodec.Encode(rCtx.ResponseWriter(), resp); err != nil {
+
+	code := http.StatusOK
+	var ret any = resp
+	if err != nil {
+		ret = err
+
+		code = http.StatusInternalServerError
+		var hc HTTPCoder
+		if errors.As(err, &hc) {
+			code = hc.HTTPCode()
+		}
+	}
+	rCtx.ResponseWriter().WriteHeader(code)
+
+	if err := rCtx.respCodec.Encode(rCtx.ResponseWriter(), ret); err != nil {
 		return err
 	}
 

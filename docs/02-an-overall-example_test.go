@@ -3,7 +3,7 @@
 // endpoints to access `Blog` web, as well as APIs to handle `Blog` data. For
 // simplicity and focus, `Blog` stores in memory, with a map instance, and all
 // code are in one package.
-package overall_test
+package espresso_test
 
 import (
 	"fmt"
@@ -178,7 +178,7 @@ func ExampleOverall() {
 	// Output:
 	// 404 text/html <p>not found</p>
 	// 400 text/html <p>bad request</p>
-  // 400 application/json {"message":"invalid character '\\n' in string literal"}
+	// 400 application/json {"message":"invalid character '\\n' in string literal"}
 	// 200 application/json {"id":1,"title":"A new web framework","content":"espresso is greate!"}
 	// 200 text/html <h1>A new web framework</h1><p>espresso is greate!</p>
 }

@@ -22,27 +22,21 @@ type Context interface {
 }
 
 func WithContext(ctx Context, new context.Context) Context {
-	rCtx := getRuntimeContext(ctx)
-
-	ret := *rCtx
+	ret := getRuntimeContext(ctx)
 	ret.Context = new
-	return &ret
+	return ret
 }
 
 func WithResponseWriter(ctx Context, w http.ResponseWriter) Context {
-	rCtx := getRuntimeContext(ctx)
-
-	ret := *rCtx
+	ret := getRuntimeContext(ctx)
 	ret.responseWriter = w
-	return &ret
+	return ret
 }
 
 func WithLogAttr(ctx Context, args ...any) Context {
-	rCtx := getRuntimeContext(ctx)
-
-	ret := *rCtx
-	ret.logger = rCtx.logger.With(args...)
-	return &ret
+	ret := getRuntimeContext(ctx)
+	ret.logger = ret.logger.With(args...)
+	return ret
 }
 
 type runtimeContext struct {

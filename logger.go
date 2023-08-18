@@ -2,6 +2,8 @@ package espresso
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"golang.org/x/exp/slog"
 )
@@ -12,10 +14,6 @@ var (
 
 func WithLog(logger *slog.Logger) ServerOption {
 	return func(s *Server) error {
-		if s == nil {
-			return nil
-		}
-
 		s.logger = logger
 		return nil
 	}
@@ -43,4 +41,30 @@ func grabLogger(ctx context.Context) *slog.Logger {
 	}
 
 	return defaultLogger
+}
+
+func MiddlewareLogRequest(ctx Context) error {
+	req := ctx.Request()
+	ctx = WithLogAttr(ctx, "span", time.Now().Unix(), "method", req.Method, "path", req.URL.Path)
+
+	respW := &responseWriter{
+		ResponseWriter: ctx.ResponseWriter(),
+		logger:         ctx.Logger(),
+	}
+	ctx = WithResponseWriter(ctx, respW)
+
+	Info(ctx, "Request")
+	defer func() {
+		if err := ctx.Error(); err != nil {
+			Error(ctx, "Error", "error", err.Error())
+		}
+		if p := recover(); p != nil {
+			Error(ctx, "Panic", "panic", fmt.Sprintf("%s", p))
+		}
+		Info(ctx, "Response", "code", respW.responseCode)
+	}()
+
+	ctx.Next()
+
+	return nil
 }
