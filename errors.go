@@ -14,7 +14,7 @@ func ErrWithStatus(code int, err error) error {
 }
 
 type httpError struct {
-	Message string
+	Message string `json:"message"`
 
 	code int
 	err  error

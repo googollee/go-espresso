@@ -6,7 +6,6 @@
 package overall_test
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -40,7 +39,7 @@ func (s *Service) ShowBlogWeb(ctx espresso.Context) error {
 		ctx.ResponseWriter().Header().Set("Content-Type", "text/html")
 		ctx.ResponseWriter().WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(ctx.ResponseWriter(), "<p>bad request</p>")
-		return espresso.ErrWithStatus(http.StatusBadRequest, err)
+		return nil
 	}
 
 	s.mu.RLock()
@@ -51,7 +50,7 @@ func (s *Service) ShowBlogWeb(ctx espresso.Context) error {
 		ctx.ResponseWriter().Header().Set("Content-Type", "text/html")
 		ctx.ResponseWriter().WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(ctx.ResponseWriter(), "<p>not found</p>")
-		return espresso.ErrWithStatus(http.StatusNotFound, errors.New("not found"))
+		return nil
 	}
 
 	ctx.ResponseWriter().Header().Set("Content-Type", "text/html")
@@ -131,6 +130,22 @@ func ExampleOverall() {
 		fmt.Println(resp.StatusCode, resp.Header.Get("Content-Type"), string(body))
 	}
 
+	// Create a Blog with bad request
+	{
+		resp, err := http.Post(addr+"/api/blogs", "application/json", strings.NewReader(`
+		{
+			"invalid_json
+		}`))
+		if err != nil {
+			panic(err)
+		}
+
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		fmt.Println(resp.StatusCode, resp.Header.Get("Content-Type"), strings.TrimSpace(string(body)))
+	}
+
 	// Create a Blog
 	{
 		resp, err := http.Post(addr+"/api/blogs", "application/json", strings.NewReader(`
@@ -163,6 +178,7 @@ func ExampleOverall() {
 	// Output:
 	// 404 text/html <p>not found</p>
 	// 400 text/html <p>bad request</p>
+  // 400 application/json {"message":"invalid character '\\n' in string literal"}
 	// 200 application/json {"id":1,"title":"A new web framework","content":"espresso is greate!"}
 	// 200 text/html <h1>A new web framework</h1><p>espresso is greate!</p>
 }
