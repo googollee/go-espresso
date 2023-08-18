@@ -9,6 +9,43 @@ import (
 	"golang.org/x/exp/slog"
 )
 
+type contextKey string
+
+const (
+	contextRequestCodec  contextKey = "request_codec"
+	contextResponseCodec contextKey = "response_codec"
+	contextLogger        contextKey = "logger"
+)
+
+func getValueFromContext[T any](ctx context.Context, key any) T {
+	var zero T
+
+	v := ctx.Value(key)
+	if v == nil {
+		return zero
+	}
+
+	ret, ok := v.(T)
+	if !ok {
+		return zero
+	}
+
+	return ret
+
+}
+
+func RequestCodec(ctx context.Context) Codec {
+	return getValueFromContext[Codec](ctx, contextRequestCodec)
+}
+
+func ResponseCodec(ctx context.Context) Codec {
+	return getValueFromContext[Codec](ctx, contextResponseCodec)
+}
+
+func Logger(ctx context.Context) *slog.Logger {
+	return getValueFromContext[*slog.Logger](ctx, contextLogger)
+}
+
 type Context interface {
 	context.Context
 	Endpoint(method, path string) EndpointBuilder
@@ -61,6 +98,19 @@ func getRuntimeContext(ctx Context) *runtimeContext {
 	}
 
 	return rCtx
+}
+
+func (c *runtimeContext) Value(key any) any {
+	switch key {
+	case contextRequestCodec:
+		return c.request
+	case contextResponseCodec:
+		return c.respCodec
+	case contextLogger:
+		return c.logger
+	}
+
+	return c.Context.Value(key)
 }
 
 func (c *runtimeContext) Endpoint(method, path string) EndpointBuilder {

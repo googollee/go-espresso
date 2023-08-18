@@ -80,7 +80,7 @@ func (s *Service) getBlogByID(ctx espresso.Context, user *User, id int) (*Blog, 
 }
 
 func (s *Service) CreateBlog(ctx espresso.Context) error {
-	return espresso.Produce(ctx, s.createBlog)
+	return espresso.Procedure(ctx, s.createBlog)
 }
 
 func (s *Service) createBlog(ctx espresso.Context, input *Blog) (*Blog, error) {
