@@ -14,7 +14,7 @@ var mycounter = prometheus.NewCounter(prometheus.CounterOpts{
 	Name: "mycounter",
 })
 
-func AddCounter(ctx espresso.Context) error {
+func HandlerAddCounter(ctx espresso.Context) error {
 	var num int
 	if err := ctx.Endpoint(http.MethodGet, "/inc/:num").
 		BindPath("num", &num).End(); err != nil {
@@ -30,7 +30,7 @@ func AddCounter(ctx espresso.Context) error {
 func LaunchWithPrometheus() (addr string, cancel func()) {
 	server, _ := espresso.New(prometheus.New("/metrics"))
 
-	server.HandleFunc(AddCounter)
+	server.HandleFunc(HandlerAddCounter)
 
 	httpSvr := httptest.NewServer(server)
 	addr = httpSvr.URL
