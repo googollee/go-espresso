@@ -28,7 +28,7 @@ func HandlerAddCounter(ctx espresso.Context) error {
 }
 
 func LaunchWithPrometheus() (addr string, cancel func()) {
-	server, _ := espresso.New(prometheus.New("/metrics"))
+	server, _ := espresso.New(prometheus.New())
 
 	server.HandleFunc(HandlerAddCounter)
 
@@ -81,16 +81,8 @@ func ExampleMonitoringWithPrometheus() {
 	// 200 text/plain; version=0.0.4; charset=utf-8 # HELP mycounter
 	// # TYPE mycounter counter
 	// mycounter 0
-	// # HELP promhttp_metric_handler_errors_total Total number of internal errors encountered by the promhttp metric handler.
-	// # TYPE promhttp_metric_handler_errors_total counter
-	// promhttp_metric_handler_errors_total{cause="encoding"} 0
-	// promhttp_metric_handler_errors_total{cause="gathering"} 0
 
 	// 200 text/plain; version=0.0.4; charset=utf-8 # HELP mycounter
 	// # TYPE mycounter counter
 	// mycounter 100
-	// # HELP promhttp_metric_handler_errors_total Total number of internal errors encountered by the promhttp metric handler.
-	// # TYPE promhttp_metric_handler_errors_total counter
-	// promhttp_metric_handler_errors_total{cause="encoding"} 0
-	// promhttp_metric_handler_errors_total{cause="gathering"} 0
 }
