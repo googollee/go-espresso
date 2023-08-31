@@ -78,11 +78,17 @@ func ExampleMonitoringWithPrometheus() {
 	}
 
 	// Output:
-	// 200 text/plain; version=0.0.4; charset=utf-8 # HELP mycounter
+	// 200 text/plain; version=0.0.4; charset=utf-8 # HELP go_gc_duration_seconds A summary of the pause duration of garbage collection cycles.
+	// # TYPE go_gc_duration_seconds summary
+	//
+	// # HELP mycounter
 	// # TYPE mycounter counter
 	// mycounter 0
 
-	// 200 text/plain; version=0.0.4; charset=utf-8 # HELP mycounter
+	// 200 text/plain; version=0.0.4; charset=utf-8 # HELP go_gc_duration_seconds A summary of the pause duration of garbage collection cycles.
+	// # TYPE go_gc_duration_seconds summary
+	//
+	// # HELP mycounter
 	// # TYPE mycounter counter
 	// mycounter 100
 }
