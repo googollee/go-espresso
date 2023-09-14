@@ -5,11 +5,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"golang.org/x/exp/slog"
 )
 
 type fakeKey string

@@ -3,10 +3,10 @@ package espresso
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
-	"golang.org/x/exp/slog"
 )
 
 type contextKey string
