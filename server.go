@@ -1,10 +1,10 @@
 package espresso
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
-	"golang.org/x/exp/slog"
 )
 
 type HandleFunc func(Context) error

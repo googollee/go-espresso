@@ -2,8 +2,7 @@ package espresso
 
 import (
 	"context"
-
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 var (

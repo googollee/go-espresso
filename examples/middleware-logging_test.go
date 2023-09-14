@@ -2,11 +2,11 @@ package espresso_test
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 
 	"github.com/googollee/go-espresso"
-	"golang.org/x/exp/slog"
 )
 
 // Use `fmt.Print` to output logs
