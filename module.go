@@ -11,11 +11,11 @@ var ErrModuleDependError = errors.New("depend error")
 
 type Module interface {
 	Name() moduleName
-	Check(context.Context) error
+	CheckHealthy(context.Context) error
 }
 
 type ModuleImplementer interface {
-	Check(context.Context) error
+	CheckHealthy(context.Context) error
 }
 
 type moduleName string
@@ -53,19 +53,16 @@ func (m ModuleType[T]) Value(ctx context.Context) T {
 	return ret
 }
 
-func (m *ModuleType[T]) Check(ctx context.Context) error {
-	var errs []error
-	for _, module := range m.depends {
-		if err := module.Check(ctx); err != nil {
-			errs = append(errs, fmt.Errorf("module %s: %w", module.Name(), err))
+func (m *ModuleType[T]) CheckHealthy(ctx context.Context) (err error) {
+	defer func() {
+		v := recover()
+		if v == nil {
+			return
 		}
-	}
 
-	if len(errs) != 0 {
-		errs = append(errs, fmt.Errorf("module %s: %w", m.Name(), ErrModuleDependError))
-	} else if err := m.Check(ctx); err != nil {
-		errs = append(errs, fmt.Errorf("module %s: %w", m.Name(), err))
-	}
+		err = fmt.Errorf("check healthy panic: %v", v)
+	}()
 
-	return errors.Join(errs...)
+	err = m.Value(ctx).CheckHealthy(ctx)
+	return
 }
