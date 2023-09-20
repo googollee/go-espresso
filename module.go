@@ -11,7 +11,7 @@ var ErrModuleDependError = errors.New("depend error")
 
 type Module interface {
 	Name() moduleName
-	DependOn() []Module
+	DependOn() []moduleName
 	CheckHealthy(context.Context) error
 }
 
@@ -23,15 +23,16 @@ type moduleName string
 
 type ModuleType[T ModuleImplementer] struct {
 	name    moduleName
-	depends []Module
+	builder func(context.Context) (T, error)
+	depends []moduleName
 }
 
-func DefineModule[T ModuleImplementer](depends ...Module) *ModuleType[T] {
+func NewModule[T ModuleImplementer](builder func(context.Context) (T, error)) *ModuleType[T] {
 	var t T
 	name := reflect.TypeOf(t).Name()
 	return &ModuleType[T]{
 		name:    moduleName(name),
-		depends: depends,
+		builder: builder,
 	}
 }
 
@@ -39,8 +40,41 @@ func (m ModuleType[T]) Name() moduleName {
 	return m.name
 }
 
-func (m ModuleType[T]) DependOn() []Module {
+func (m ModuleType[T]) DependOn() []moduleName {
 	return m.depends
+}
+
+type buildContext struct {
+	context.Context
+	deps map[moduleName]struct{}
+}
+
+func (c *buildContext) Value(key any) any {
+	name, ok := key.(moduleName)
+	if !ok {
+		return c.Context.Value(key)
+	}
+
+	c.deps[name] = struct{}{}
+	return c.Context.Value(name)
+}
+
+func (m *ModuleType[T]) Build(ctx context.Context) (T, error) {
+	buildContext := &buildContext{
+		Context: ctx,
+		deps:    make(map[moduleName]struct{}),
+	}
+	ret, err := m.builder(buildContext)
+	if err != nil {
+		return ret, err
+	}
+
+	m.depends = make([]moduleName, 0, len(buildContext.deps))
+	for name := range buildContext.deps {
+		m.depends = append(m.depends, name)
+	}
+
+	return ret, nil
 }
 
 func (m ModuleType[T]) Value(ctx context.Context) T {
