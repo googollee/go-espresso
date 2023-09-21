@@ -75,7 +75,9 @@ func Handler(ctx espresso.Context) error {
 
 func LaunchModule() (addr string, cancel func()) {
 	server, _ := espresso.New()
-	server.AddModule(ModuleCache, ModuleMQ, ModuleDB)
+	if err := server.AddModule(ModuleCache, ModuleMQ, ModuleDB); err != nil {
+		panic(err)
+	}
 
 	server.HandleFunc(Handler)
 
