@@ -23,11 +23,11 @@ type moduleName string
 
 type ModuleType[T ModuleImplementer] struct {
 	name    moduleName
-	builder func(context.Context) (T, error)
+	builder func(context.Context, *Server) (T, error)
 	depends []moduleName
 }
 
-func NewModule[T ModuleImplementer](builder func(context.Context) (T, error)) *ModuleType[T] {
+func NewModule[T ModuleImplementer](builder func(context.Context, *Server) (T, error)) *ModuleType[T] {
 	var t T
 	name := reflect.TypeOf(t).Name()
 	return &ModuleType[T]{

@@ -14,7 +14,7 @@ type DB struct {
 	DB string
 }
 
-func NewDB(ctx context.Context) (*DB, error) {
+func NewDB(ctx context.Context, s *espresso.Server) (*DB, error) {
 	return &DB{
 		DB: "db",
 	}, nil
@@ -30,7 +30,7 @@ type Cache struct {
 	Cache string
 }
 
-func NewCache(ctx context.Context) (*Cache, error) {
+func NewCache(ctx context.Context, s *espresso.Server) (*Cache, error) {
 	db := ModuleDB.Value(ctx)
 	return &Cache{
 		Cache: "cache with " + db.DB,
@@ -47,7 +47,7 @@ type MessageQueue struct {
 	Queue string
 }
 
-func NewMQ(ctx context.Context) (*MessageQueue, error) {
+func NewMQ(ctx context.Context, s *espresso.Server) (*MessageQueue, error) {
 	return &MessageQueue{
 		Queue: "queue",
 	}, nil
