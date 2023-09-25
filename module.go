@@ -8,26 +8,31 @@ import (
 )
 
 var ErrModuleDependError = errors.New("depend error")
+var ErrModuleNotFound = errors.New("not found module")
+
+type moduleName string
 
 type Module interface {
 	Name() moduleName
 	DependOn() []moduleName
 	CheckHealthy(context.Context) error
+
+	build(*buildContext) error
 }
 
 type ModuleImplementer interface {
 	CheckHealthy(context.Context) error
 }
 
-type moduleName string
+type ModuleBuilder[T ModuleImplementer] func(context.Context, *Server) (T, error)
 
 type ModuleType[T ModuleImplementer] struct {
 	name    moduleName
-	builder func(context.Context, *Server) (T, error)
+	builder ModuleBuilder[T]
 	depends []moduleName
 }
 
-func NewModule[T ModuleImplementer](builder func(context.Context, *Server) (T, error)) *ModuleType[T] {
+func NewModule[T ModuleImplementer](builder ModuleBuilder[T]) *ModuleType[T] {
 	var t T
 	name := reflect.TypeOf(t).Name()
 	return &ModuleType[T]{
@@ -42,39 +47,6 @@ func (m ModuleType[T]) Name() moduleName {
 
 func (m ModuleType[T]) DependOn() []moduleName {
 	return m.depends
-}
-
-type buildContext struct {
-	context.Context
-	deps map[moduleName]struct{}
-}
-
-func (c *buildContext) Value(key any) any {
-	name, ok := key.(moduleName)
-	if !ok {
-		return c.Context.Value(key)
-	}
-
-	c.deps[name] = struct{}{}
-	return c.Context.Value(name)
-}
-
-func (m *ModuleType[T]) Build(ctx context.Context) (T, error) {
-	buildContext := &buildContext{
-		Context: ctx,
-		deps:    make(map[moduleName]struct{}),
-	}
-	ret, err := m.builder(buildContext)
-	if err != nil {
-		return ret, err
-	}
-
-	m.depends = make([]moduleName, 0, len(buildContext.deps))
-	for name := range buildContext.deps {
-		m.depends = append(m.depends, name)
-	}
-
-	return ret, nil
 }
 
 func (m ModuleType[T]) Value(ctx context.Context) T {
@@ -106,26 +78,37 @@ func (m *ModuleType[T]) CheckHealthy(ctx context.Context) (err error) {
 	return
 }
 
-func CheckHealthy(ctx context.Context, rootModules []Module) map[moduleName]error {
+func CheckHealthy(ctx context.Context, rootNames []moduleName) map[moduleName]error {
 	ret := map[moduleName]error{}
 
-	checkModuleHealthy(ctx, rootModules, ret)
+	checkModuleHealthy(ctx, rootNames, ret)
 
 	return ret
 }
 
-func checkModuleHealthy(ctx context.Context, modules []Module, errs map[moduleName]error) {
-	for _, m := range modules {
-		if _, ok := errs[m.Name()]; ok {
+func checkModuleHealthy(ctx context.Context, names []moduleName, errs map[moduleName]error) {
+	for _, name := range names {
+		if _, ok := errs[name]; ok {
+			continue
+		}
+
+		v := ctx.Value(name)
+		if v == nil {
+			errs[name] = fmt.Errorf("module %s: %w", name, ErrModuleNotFound)
+			continue
+		}
+		module, ok := v.(Module)
+		if !ok {
+			errs[name] = fmt.Errorf("module %s: %w", name, ErrModuleNotFound)
 			continue
 		}
 
 		depHealthy := true
-		if deps := m.DependOn(); len(deps) != 0 {
+		if deps := module.DependOn(); len(deps) != 0 {
 			checkModuleHealthy(ctx, deps, errs)
 
-			for _, dep := range deps {
-				if errs[dep.Name()] != nil {
+			for _, depname := range deps {
+				if errs[depname] != nil {
 					depHealthy = false
 					break
 				}
@@ -133,10 +116,47 @@ func checkModuleHealthy(ctx context.Context, modules []Module, errs map[moduleNa
 		}
 
 		if !depHealthy {
-			errs[m.Name()] = ErrModuleDependError
+			errs[name] = ErrModuleDependError
 			continue
 		}
 
-		errs[m.Name()] = m.CheckHealthy(ctx)
+		errs[name] = module.CheckHealthy(ctx)
 	}
+}
+
+type buildContext struct {
+	context.Context
+	server  *Server
+	deps    map[moduleName]struct{}
+	modules map[moduleName]ModuleImplementer
+}
+
+func (c *buildContext) Value(key any) any {
+	name, ok := key.(moduleName)
+	if !ok {
+		return c.Context.Value(key)
+	}
+
+	c.deps[name] = struct{}{}
+	return c.modules[name]
+}
+
+func (m *ModuleType[T]) build(ctx *buildContext) error {
+	if _, ok := ctx.modules[m.Name()]; ok {
+		return nil
+	}
+
+	ret, err := m.builder(ctx, ctx.server)
+	if err != nil {
+		return err
+	}
+
+	m.depends = make([]moduleName, 0, len(ctx.deps))
+	for name := range ctx.deps {
+		m.depends = append(m.depends, name)
+	}
+
+	ctx.modules[m.Name()] = ret
+
+	return nil
 }
