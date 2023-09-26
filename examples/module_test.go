@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 
 	"github.com/googollee/go-espresso"
+	"github.com/googollee/go-espresso/module"
 )
 
 type DB struct {
@@ -24,7 +25,7 @@ func (d *DB) CheckHealthy(ctx context.Context) error {
 	return nil
 }
 
-var ModuleDB = espresso.NewModule(NewDB)
+var ModuleDB = module.NewModule(NewDB)
 
 type Cache struct {
 	Cache string
@@ -41,7 +42,7 @@ func (c *Cache) CheckHealthy(ctx context.Context) error {
 	return nil
 }
 
-var ModuleCache = espresso.NewModule(NewCache)
+var ModuleCache = module.NewModule(NewCache)
 
 type MessageQueue struct {
 	Queue string
@@ -57,7 +58,7 @@ func (r *MessageQueue) CheckHealthy(ctx context.Context) error {
 	return nil
 }
 
-var ModuleMQ = espresso.NewModule(NewMQ)
+var ModuleMQ = module.NewModule(NewMQ)
 
 func Handler(ctx espresso.Context) error {
 	if err := ctx.Endpoint(http.MethodGet, "/").End(); err != nil {
