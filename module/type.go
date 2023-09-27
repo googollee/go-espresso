@@ -73,7 +73,7 @@ func (m *ModuleType[T]) CheckHealthy(ctx context.Context) (err error) {
 
 func (m *ModuleType[T]) valueWithBuilder(ctx *buildContext) T {
 	ctx.deps[m.Name()] = struct{}{}
-	if ret, ok := ctx.modules[m.Name()]; ok {
+	if ret, ok := ctx.instances[m.Name()]; ok {
 		return ret.(T)
 	}
 
@@ -82,19 +82,13 @@ func (m *ModuleType[T]) valueWithBuilder(ctx *buildContext) T {
 		panic(errBuildError)
 	}
 
-	return ctx.modules[m.Name()].(T)
+	return ctx.instances[m.Name()].(T)
 }
 
 func (m *ModuleType[T]) build(ctx *buildContext) error {
-	bctx := buildContext{
-		Context: ctx.Context,
-		server:  ctx.server,
-		deps:    make(map[moduleName]struct{}),
-		modules: ctx.modules,
-		err:     nil,
-	}
+	bctx := ctx.Child()
 
-	ret, err := m.builder(&bctx, bctx.server)
+	ret, err := m.builder(bctx, bctx.server)
 	if err != nil {
 		return err
 	}
@@ -104,7 +98,7 @@ func (m *ModuleType[T]) build(ctx *buildContext) error {
 		m.depends = append(m.depends, name)
 	}
 
-	ctx.modules[m.Name()] = ret
+	ctx.instances[m.Name()] = ret
 
 	return nil
 }
