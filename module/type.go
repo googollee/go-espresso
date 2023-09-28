@@ -23,7 +23,7 @@ type ModuleType[T ModuleImplementer] struct {
 
 func NewModule[T ModuleImplementer](builder ModuleBuilder[T]) *ModuleType[T] {
 	var t T
-	name := reflect.TypeOf(t).Name()
+	name := reflect.TypeOf(t).String()
 
 	return &ModuleType[T]{
 		name:    moduleName(name),
@@ -40,13 +40,13 @@ func (m ModuleType[T]) DependOn() []moduleName {
 }
 
 func (m ModuleType[T]) Value(ctx context.Context) T {
-	v := ctx.Value(m.name)
-	if v == nil {
-		return m.zeroT
-	}
-
 	if bctx, ok := ctx.(*buildContext); ok {
 		return m.valueWithBuilder(bctx)
+	}
+
+	v := ctx.Value(m.Name())
+	if v == nil {
+		return m.zeroT
 	}
 
 	ret, ok := v.(T)

@@ -6,7 +6,7 @@ import (
 	"github.com/googollee/go-espresso"
 )
 
-func Build(ctx context.Context, server *espresso.Server, modules []Module) ([]ModuleImplementer, error) {
+func Build(ctx context.Context, server *espresso.Server, modules []Module) (map[moduleName]ModuleImplementer, error) {
 	bctx := newBuildContext(ctx, server)
 
 	for _, m := range modules {
@@ -57,10 +57,6 @@ func (c *buildContext) Module(name moduleName) ModuleImplementer {
 	return c.instances[name]
 }
 
-func (c *buildContext) Modules() []ModuleImplementer {
-	ret := make([]ModuleImplementer, 0, len(c.instances))
-	for _, i := range c.instances {
-		ret = append(ret, i)
-	}
-	return ret
+func (c *buildContext) Modules() map[moduleName]ModuleImplementer {
+	return c.instances
 }
