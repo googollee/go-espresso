@@ -68,7 +68,7 @@ func TestModule(t *testing.T) {
 		t.Fatalf("Build(ctx, server, {module1, module2, module5}) returns error: %v", err)
 	}
 
-	wantModules := map[moduleName]ModuleImplementer{
+	wantModules := map[nameKey]ModuleImplementer{
 		module1.Name(): &Module1{},
 		module2.Name(): &Module2{},
 		module3.Name(): &Module3{},
@@ -92,11 +92,11 @@ func TestModule(t *testing.T) {
 		}
 	}
 
-	for mod, wantDeps := range map[Module][]moduleName{
-		module1: []moduleName{module2.Name(), module3.Name()},
+	for mod, wantDeps := range map[Module][]nameKey{
+		module1: []nameKey{module2.Name(), module3.Name()},
 		module2: nil,
-		module3: []moduleName{module5.Name()},
-		module4: []moduleName{module5.Name()},
+		module3: []nameKey{module5.Name()},
+		module4: []nameKey{module5.Name()},
 		module5: nil,
 	} {
 		if got, want := mod.DependOn(), wantDeps; !slices.Equal(got, want) {

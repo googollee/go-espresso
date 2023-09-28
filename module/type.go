@@ -15,9 +15,9 @@ type ModuleImplementer interface {
 type ModuleBuilder[T ModuleImplementer] func(context.Context, *espresso.Server) (T, error)
 
 type ModuleType[T ModuleImplementer] struct {
-	name    moduleName
+	name    nameKey
 	builder ModuleBuilder[T]
-	depends []moduleName
+	depends []nameKey
 	zeroT   T
 }
 
@@ -26,16 +26,16 @@ func NewModule[T ModuleImplementer](builder ModuleBuilder[T]) *ModuleType[T] {
 	name := reflect.TypeOf(t).String()
 
 	return &ModuleType[T]{
-		name:    moduleName(name),
+		name:    nameKey(name),
 		builder: builder,
 	}
 }
 
-func (m ModuleType[T]) Name() moduleName {
+func (m ModuleType[T]) Name() nameKey {
 	return m.name
 }
 
-func (m ModuleType[T]) DependOn() []moduleName {
+func (m ModuleType[T]) DependOn() []nameKey {
 	return m.depends
 }
 
@@ -93,7 +93,7 @@ func (m *ModuleType[T]) build(ctx *buildContext) error {
 		return err
 	}
 
-	m.depends = make([]moduleName, 0, len(ctx.deps))
+	m.depends = make([]nameKey, 0, len(ctx.deps))
 	for name := range ctx.deps {
 		m.depends = append(m.depends, name)
 	}

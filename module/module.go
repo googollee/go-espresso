@@ -10,18 +10,18 @@ var ErrModuleDependError = errors.New("depend error")
 var ErrModuleNotFound = errors.New("not found module")
 var errBuildError = errors.New("build error")
 
-type moduleName string
+type nameKey string
 
 type Module interface {
-	Name() moduleName
-	DependOn() []moduleName
+	Name() nameKey
+	DependOn() []nameKey
 	CheckHealthy(context.Context) error
 
 	build(*buildContext) error
 }
 
-func CheckHealthy(ctx context.Context, names []moduleName) error {
-	errs := make(map[moduleName]error)
+func CheckHealthy(ctx context.Context, names []nameKey) error {
+	errs := make(map[nameKey]error)
 
 	checkModuleHealthy(ctx, names, errs)
 
@@ -36,7 +36,7 @@ func CheckHealthy(ctx context.Context, names []moduleName) error {
 	return nil
 }
 
-func checkModuleHealthy(ctx context.Context, names []moduleName, errs map[moduleName]error) {
+func checkModuleHealthy(ctx context.Context, names []nameKey, errs map[nameKey]error) {
 	for _, name := range names {
 		if _, ok := errs[name]; ok {
 			continue
