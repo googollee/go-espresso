@@ -1,9 +1,11 @@
 package espresso
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 
+	"github.com/googollee/go-espresso/module"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -12,8 +14,9 @@ type HandleFunc func(Context) error
 type ServerOption func(*Server) error
 
 type Server struct {
-	logger *slog.Logger
-	codecs codecManager
+	logger  *slog.Logger
+	codecs  codecManager
+	modules module.Modules
 
 	Group
 	endpoints []Endpoint
@@ -43,6 +46,18 @@ func New(opts ...ServerOption) (*Server, error) {
 	return ret, nil
 }
 
+func (s *Server) AddModule(mod ...module.Module) error {
+	ctx := context.WithValue(context.Background(), serverKey, s)
+
+	var err error
+	s.modules, err = module.Build(ctx, mod)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.router.ServeHTTP(w, r)
 }
@@ -67,6 +82,7 @@ func (s *Server) registerEndpoint(endpoint *Endpoint, middle []HandleFunc, fn Ha
 			request:        r,
 			responseWriter: w,
 			pathParams:     p,
+			modules:        s.modules,
 			logger:         s.logger,
 			reqCodec:       reqCodec,
 			respCodec:      respCodec,

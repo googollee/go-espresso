@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/googollee/go-espresso/module"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -81,6 +82,7 @@ type runtimeContext struct {
 	request        *http.Request
 	responseWriter http.ResponseWriter
 	pathParams     httprouter.Params
+	modules        module.Modules
 
 	logger    *slog.Logger
 	reqCodec  Codec
@@ -101,6 +103,10 @@ func getRuntimeContext(ctx Context) *runtimeContext {
 }
 
 func (c *runtimeContext) Value(key any) any {
+	if ret := c.modules.Value(key); ret != nil {
+		return ret
+	}
+
 	switch key {
 	case contextRequestCodec:
 		return c.request
