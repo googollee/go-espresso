@@ -2,12 +2,10 @@ package module
 
 import (
 	"context"
-
-	"github.com/googollee/go-espresso"
 )
 
-func Build(ctx context.Context, server *espresso.Server, modules []Module) (map[nameKey]ModuleImplementer, error) {
-	bctx := newBuildContext(ctx, server)
+func Build(ctx context.Context, modules []Module) (Modules, error) {
+	bctx := newBuildContext(ctx)
 
 	for _, m := range modules {
 		if err := m.build(bctx); err != nil {
@@ -20,25 +18,22 @@ func Build(ctx context.Context, server *espresso.Server, modules []Module) (map[
 
 type buildContext struct {
 	context.Context
-	server    *espresso.Server
 	deps      map[nameKey]struct{}
-	instances map[nameKey]ModuleImplementer
+	instances map[nameKey]Instance
 	err       error
 }
 
-func newBuildContext(ctx context.Context, server *espresso.Server) *buildContext {
+func newBuildContext(ctx context.Context) *buildContext {
 	return &buildContext{
 		Context:   ctx,
-		server:    server,
 		deps:      make(map[nameKey]struct{}),
-		instances: make(map[nameKey]ModuleImplementer),
+		instances: make(map[nameKey]Instance),
 	}
 }
 
 func (c *buildContext) Child() *buildContext {
 	return &buildContext{
 		Context:   c.Context,
-		server:    c.server,
 		deps:      make(map[nameKey]struct{}),
 		instances: c.instances,
 	}
@@ -53,10 +48,10 @@ func (c *buildContext) Value(key any) any {
 	return c.Module(name)
 }
 
-func (c *buildContext) Module(name nameKey) ModuleImplementer {
+func (c *buildContext) Module(name nameKey) Instance {
 	return c.instances[name]
 }
 
-func (c *buildContext) Modules() map[nameKey]ModuleImplementer {
+func (c *buildContext) Modules() map[nameKey]Instance {
 	return c.instances
 }

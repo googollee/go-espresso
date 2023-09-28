@@ -4,42 +4,40 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-
-	"github.com/googollee/go-espresso"
 )
 
-type ModuleImplementer interface {
+type Instance interface {
 	CheckHealthy(context.Context) error
 }
 
-type ModuleBuilder[T ModuleImplementer] func(context.Context, *espresso.Server) (T, error)
+type Builder[T Instance] func(context.Context) (T, error)
 
-type ModuleType[T ModuleImplementer] struct {
+type Type[T Instance] struct {
 	name    nameKey
-	builder ModuleBuilder[T]
+	builder Builder[T]
 	depends []nameKey
 	zeroT   T
 }
 
-func NewModule[T ModuleImplementer](builder ModuleBuilder[T]) *ModuleType[T] {
+func NewModule[T Instance](builder Builder[T]) *Type[T] {
 	var t T
 	name := reflect.TypeOf(t).String()
 
-	return &ModuleType[T]{
+	return &Type[T]{
 		name:    nameKey(name),
 		builder: builder,
 	}
 }
 
-func (m ModuleType[T]) Name() nameKey {
+func (m Type[T]) Name() nameKey {
 	return m.name
 }
 
-func (m ModuleType[T]) DependOn() []nameKey {
+func (m Type[T]) DependOn() []nameKey {
 	return m.depends
 }
 
-func (m ModuleType[T]) Value(ctx context.Context) T {
+func (m Type[T]) Value(ctx context.Context) T {
 	if bctx, ok := ctx.(*buildContext); ok {
 		return m.valueWithBuilder(bctx)
 	}
@@ -57,7 +55,7 @@ func (m ModuleType[T]) Value(ctx context.Context) T {
 	return ret
 }
 
-func (m *ModuleType[T]) CheckHealthy(ctx context.Context) (err error) {
+func (m *Type[T]) CheckHealthy(ctx context.Context) (err error) {
 	defer func() {
 		v := recover()
 		if v == nil {
@@ -71,7 +69,7 @@ func (m *ModuleType[T]) CheckHealthy(ctx context.Context) (err error) {
 	return
 }
 
-func (m *ModuleType[T]) valueWithBuilder(ctx *buildContext) T {
+func (m *Type[T]) valueWithBuilder(ctx *buildContext) T {
 	ctx.deps[m.Name()] = struct{}{}
 	if ret, ok := ctx.instances[m.Name()]; ok {
 		return ret.(T)
@@ -85,10 +83,10 @@ func (m *ModuleType[T]) valueWithBuilder(ctx *buildContext) T {
 	return ctx.instances[m.Name()].(T)
 }
 
-func (m *ModuleType[T]) build(ctx *buildContext) error {
+func (m *Type[T]) build(ctx *buildContext) error {
 	bctx := ctx.Child()
 
-	ret, err := m.builder(bctx, bctx.server)
+	ret, err := m.builder(bctx)
 	if err != nil {
 		return err
 	}

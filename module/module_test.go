@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"slices"
 	"testing"
-
-	"github.com/googollee/go-espresso"
 )
 
 // - Module1
@@ -27,27 +25,27 @@ type Module3 struct{ fakeModule }
 type Module4 struct{ fakeModule }
 type Module5 struct{ fakeModule }
 
-func build1(ctx context.Context, s *espresso.Server) (*Module1, error) {
+func build1(ctx context.Context) (*Module1, error) {
 	_ = module2.Value(ctx)
 	_ = module3.Value(ctx)
 	return &Module1{}, nil
 }
 
-func build2(ctx context.Context, s *espresso.Server) (*Module2, error) {
+func build2(ctx context.Context) (*Module2, error) {
 	_ = module5.Value(ctx)
 	return &Module2{}, nil
 }
 
-func build3(ctx context.Context, s *espresso.Server) (*Module3, error) {
+func build3(ctx context.Context) (*Module3, error) {
 	return &Module3{}, nil
 }
 
-func build4(ctx context.Context, s *espresso.Server) (*Module4, error) {
+func build4(ctx context.Context) (*Module4, error) {
 	_ = module5.Value(ctx)
 	return &Module4{}, nil
 }
 
-func build5(ctx context.Context, s *espresso.Server) (*Module5, error) {
+func build5(ctx context.Context) (*Module5, error) {
 	return &Module5{}, nil
 }
 
@@ -61,14 +59,13 @@ var (
 
 func TestModule(t *testing.T) {
 	ctx := context.Background()
-	server := &espresso.Server{}
 
-	modules, err := Build(ctx, server, []Module{module1, module2, module4})
+	modules, err := Build(ctx, []Module{module1, module2, module4})
 	if err != nil {
 		t.Fatalf("Build(ctx, server, {module1, module2, module5}) returns error: %v", err)
 	}
 
-	wantModules := map[nameKey]ModuleImplementer{
+	wantModules := map[nameKey]Instance{
 		module1.Name(): &Module1{},
 		module2.Name(): &Module2{},
 		module3.Name(): &Module3{},
