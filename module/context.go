@@ -1,6 +1,9 @@
 package module
 
-import "context"
+import (
+	"context"
+	"slices"
+)
 
 type errBuildError struct {
 	name contextKey
@@ -54,6 +57,7 @@ func (ctx *buildContext) addInstance(instance Instance) {
 	for key := range ctx.dependOn {
 		deps = append(deps, key)
 	}
+	slices.Sort(deps)
 
 	ctx.repo.addInstance(ctx.mod, deps, instance)
 }
