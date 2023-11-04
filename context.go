@@ -82,7 +82,7 @@ type runtimeContext struct {
 	request        *http.Request
 	responseWriter http.ResponseWriter
 	pathParams     httprouter.Params
-	modules        module.Modules
+	repo           *module.Repo
 
 	logger    *slog.Logger
 	reqCodec  Codec
@@ -103,8 +103,11 @@ func getRuntimeContext(ctx Context) *runtimeContext {
 }
 
 func (c *runtimeContext) Value(key any) any {
-	if ret := c.modules.Value(key); ret != nil {
-		return ret
+	moduleKey, ok := key.(module.ModuleKey)
+	if ok {
+		if ret := c.repo.Value(moduleKey); ret != nil {
+			return ret
+		}
 	}
 
 	switch key {

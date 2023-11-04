@@ -2,76 +2,81 @@ package module
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"reflect"
 )
 
-var ErrModuleDependError = errors.New("depend error")
-var ErrModuleNotFound = errors.New("not found module")
-var errBuildError = errors.New("build error")
+type Instance interface {
+	CheckHealth(context.Context) error
+}
 
-type nameKey string
+type BuildFunc[T Instance] func(context.Context) (T, error)
 
-type Module interface {
-	Name() nameKey
-	DependOn() []nameKey
-	CheckHealthy(context.Context) error
-
+type ModuleKey interface {
+	contextKey() contextKey
 	build(*buildContext) error
 }
+type contextKey string
 
-func CheckHealthy(ctx context.Context, names []nameKey) error {
-	errs := make(map[nameKey]error)
-
-	checkModuleHealthy(ctx, names, errs)
-
-	if len(errs) != 0 {
-		ret := make([]error, 0, len(errs))
-		for name, err := range errs {
-			ret = append(ret, fmt.Errorf("module %s: %w", name, err))
-		}
-		return errors.Join(ret...)
-	}
-
-	return nil
+type Module[T Instance] struct {
+	ModuleKey
+	name    contextKey
+	buildFn BuildFunc[T]
 }
 
-func checkModuleHealthy(ctx context.Context, names []nameKey, errs map[nameKey]error) {
-	for _, name := range names {
-		if _, ok := errs[name]; ok {
-			continue
-		}
-
-		v := ctx.Value(name)
-		if v == nil {
-			errs[name] = ErrModuleNotFound
-			continue
-		}
-		module, ok := v.(Module)
-		if !ok {
-			errs[name] = ErrModuleNotFound
-			continue
-		}
-
-		depHealthy := true
-		if deps := module.DependOn(); len(deps) != 0 {
-			checkModuleHealthy(ctx, deps, errs)
-
-			for _, depname := range deps {
-				if errs[depname] != nil {
-					depHealthy = false
-					break
-				}
-			}
-		}
-
-		if !depHealthy {
-			errs[name] = ErrModuleDependError
-			continue
-		}
-
-		if err := module.CheckHealthy(ctx); err != nil {
-			errs[name] = err
-		}
+func New[T Instance](buildFunc BuildFunc[T]) Module[T] {
+	var t T
+	return Module[T]{
+		name:    contextKey(reflect.TypeOf(t).String()),
+		buildFn: buildFunc,
 	}
+}
+
+func (m Module[T]) Value(ctx context.Context) (ret T) {
+	v := ctx.Value(m)
+	if v == nil {
+		return
+	}
+
+	return v.(T)
+}
+
+func (m Module[T]) String() string {
+	return fmt.Sprintf("Module[%s]", m.name)
+}
+
+func (m Module[T]) contextKey() contextKey {
+	return m.name
+}
+
+func (m Module[T]) build(ctx *buildContext) (err error) {
+	t := ctx.Value(m.name)
+	if t != nil {
+		return nil
+	}
+
+	bctx := ctx.Child(m)
+
+	defer func() {
+		p := recover()
+		if p == nil {
+			return
+		}
+
+		e, ok := p.(errBuildError)
+		if !ok {
+			panic(p)
+		}
+
+		err = fmt.Errorf("Module[%s] build error: %w", e.name, e.err)
+	}()
+
+	instance, err := m.buildFn(bctx)
+	if err != nil {
+		return fmt.Errorf("Module[%s] build error: %w", m.name, err)
+	}
+
+	bctx.addInstance(instance)
+
+	return nil
 }

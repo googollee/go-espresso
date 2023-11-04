@@ -14,9 +14,9 @@ type HandleFunc func(Context) error
 type ServerOption func(*Server) error
 
 type Server struct {
-	logger  *slog.Logger
-	codecs  codecManager
-	modules module.Modules
+	logger *slog.Logger
+	codecs codecManager
+	repo   *module.Repo
 
 	Group
 	endpoints []Endpoint
@@ -28,6 +28,7 @@ func New(opts ...ServerOption) (*Server, error) {
 		router: httprouter.New(),
 		logger: defaultLogger,
 		codecs: defaultManager(),
+		repo:   module.NewRepo(),
 	}
 
 	ret.Group = Group{
@@ -46,12 +47,10 @@ func New(opts ...ServerOption) (*Server, error) {
 	return ret, nil
 }
 
-func (s *Server) AddModule(mod ...module.Module) error {
-	ctx := context.WithValue(context.Background(), serverKey, s)
+func (s *Server) AddModule(ctx context.Context, mod ...module.ModuleKey) error {
+	s.repo.Add(mod...)
 
-	var err error
-	s.modules, err = module.Build(ctx, mod)
-	if err != nil {
+	if err := s.repo.Build(ctx); err != nil {
 		return err
 	}
 
@@ -62,7 +61,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.router.ServeHTTP(w, r)
 }
 
-func (s *Server) ListenAndServe(addr string) error {
+func (s *Server) ListenAndServe(ctx context.Context, addr string) error {
+	if err := s.repo.Build(ctx); err != nil {
+		return err
+	}
+
 	s.logger.Info("Launch espresso server", "addr", addr)
 	return http.ListenAndServe(addr, s.router)
 }
@@ -82,7 +85,7 @@ func (s *Server) registerEndpoint(endpoint *Endpoint, middle []HandleFunc, fn Ha
 			request:        r,
 			responseWriter: w,
 			pathParams:     p,
-			modules:        s.modules,
+			repo:           s.repo,
 			logger:         s.logger,
 			reqCodec:       reqCodec,
 			respCodec:      respCodec,
