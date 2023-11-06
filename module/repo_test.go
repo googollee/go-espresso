@@ -2,8 +2,10 @@ package module
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -65,7 +67,7 @@ var (
 	module5 = New(build5)
 )
 
-func TestModule(t *testing.T) {
+func TestRepoBuild(t *testing.T) {
 	ctx := context.Background()
 
 	repo := NewRepo()
@@ -97,7 +99,7 @@ func TestModule(t *testing.T) {
 	}
 }
 
-func TestModuleDependOn(t *testing.T) {
+func TestRepoDependOn(t *testing.T) {
 	ctx := context.Background()
 
 	repo := NewRepo()
@@ -129,5 +131,95 @@ func TestModuleDependOn(t *testing.T) {
 		if got, want := repo.mods[tc.module.contextKey()].dependsOn, wantDepsKey; !slices.Equal(got, want) {
 			t.Errorf("repo.DependOn(%v) = %v, want: %v", tc.module, got, want)
 		}
+	}
+}
+
+func TestRepoBuildError(t *testing.T) {
+	buildErr := errors.New("build error")
+
+	module1 := New(func(ctx context.Context) (*Module1, error) {
+		return nil, fmt.Errorf("module1: %w", buildErr)
+	})
+	module2 := New(func(ctx context.Context) (*Module2, error) {
+		_ = module1.Value(ctx)
+		return &Module2{}, nil
+	})
+
+	tests := []struct {
+		name          string
+		mods          []ModuleKey
+		wantErrString string
+	}{
+		{
+			name:          "Direct",
+			mods:          []ModuleKey{module1},
+			wantErrString: "module1",
+		},
+		{
+			name:          "Depend",
+			mods:          []ModuleKey{module2},
+			wantErrString: "module1",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := NewRepo()
+			repo.Add(tc.mods...)
+
+			err := repo.Build(context.Background())
+			if got, want := err, buildErr; !errors.Is(got, want) {
+				t.Fatalf("repo.Build() = %v, want: %v", got, want)
+			}
+			if got, want := err.Error(), tc.wantErrString; !strings.Contains(got, want) {
+				t.Fatalf("repo.Build() = %q, want sub string: %q", got, want)
+			}
+		})
+	}
+}
+
+func TestRepoBuildPanic(t *testing.T) {
+	buildErr := errors.New("build error")
+
+	module1 := New(func(ctx context.Context) (*Module1, error) {
+		panic(buildErr)
+	})
+	module2 := New(func(ctx context.Context) (*Module2, error) {
+		_ = module1.Value(ctx)
+		return &Module2{}, nil
+	})
+
+	tests := []struct {
+		name          string
+		mods          []ModuleKey
+		wantErrString string
+	}{
+		{
+			name:          "Direct",
+			mods:          []ModuleKey{module1},
+			wantErrString: "module1",
+		},
+		{
+			name:          "Depend",
+			mods:          []ModuleKey{module2},
+			wantErrString: "module1",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := NewRepo()
+			repo.Add(tc.mods...)
+
+			defer func() {
+				r := recover()
+				if got, want := r, buildErr; got != want {
+					t.Fatalf("repo.Build() panic with %v, want: %v", got, want)
+				}
+			}()
+
+			_ = repo.Build(context.Background())
+			panic("should not reach here")
+		})
 	}
 }
