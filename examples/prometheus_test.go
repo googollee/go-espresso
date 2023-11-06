@@ -28,7 +28,7 @@ func HandlerAddCounter(ctx espresso.Context) error {
 }
 
 func LaunchWithPrometheus() (addr string, cancel func()) {
-	server, _ := espresso.New(prometheus.New())
+	server, _ := espresso.Default(prometheus.Use())
 
 	server.HandleFunc(HandlerAddCounter)
 

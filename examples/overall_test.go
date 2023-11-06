@@ -6,6 +6,7 @@
 package espresso_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -32,11 +33,12 @@ type Service struct {
 
 // An endpoint to show a `Blog` as a webpage
 func (s *Service) ShowBlogWeb(ctx espresso.Context) error {
+	ctx.ResponseWriter().Header().Set("Content-Type", "text/html")
+
 	var id int
 	if err := ctx.Endpoint(http.MethodGet, "/blogs/:id").
 		BindPath("id", &id).
 		End(); err != nil {
-		ctx.ResponseWriter().Header().Set("Content-Type", "text/html")
 		ctx.ResponseWriter().WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(ctx.ResponseWriter(), "<p>bad request</p>")
 		return nil
@@ -47,13 +49,11 @@ func (s *Service) ShowBlogWeb(ctx espresso.Context) error {
 
 	blog, ok := s.blogs[id]
 	if !ok {
-		ctx.ResponseWriter().Header().Set("Content-Type", "text/html")
 		ctx.ResponseWriter().WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(ctx.ResponseWriter(), "<p>not found</p>")
 		return nil
 	}
 
-	ctx.ResponseWriter().Header().Set("Content-Type", "text/html")
 	ctx.ResponseWriter().WriteHeader(http.StatusOK)
 	fmt.Fprintf(ctx.ResponseWriter(), "<h1>%s</h1><p>%s</p>", blog.Title, blog.Content)
 
@@ -62,13 +62,16 @@ func (s *Service) ShowBlogWeb(ctx espresso.Context) error {
 
 // An API to create new `Blog`s
 func (s *Service) CreateBlog(ctx espresso.Context) error {
-	return espresso.Procedure(ctx, s.createBlog)
-}
+	ctx.ResponseWriter().Header().Set("Content-Type", "application/json")
 
-func (s *Service) createBlog(ctx espresso.Context, newBlog *Blog) (*Blog, error) {
 	if err := ctx.Endpoint(http.MethodPost, "/api/blogs").
 		End(); err != nil {
-		return nil, espresso.ErrWithStatus(http.StatusBadRequest, err)
+		return espresso.ErrWithStatus(http.StatusBadRequest, err)
+	}
+
+	var newBlog Blog
+	if err := json.NewDecoder(ctx.Request().Body).Decode(&newBlog); err != nil {
+		return espresso.ErrWithStatus(http.StatusBadRequest, err)
 	}
 
 	s.mu.Lock()
@@ -76,14 +79,15 @@ func (s *Service) createBlog(ctx espresso.Context, newBlog *Blog) (*Blog, error)
 
 	newBlog.ID = s.nextID
 	s.nextID++
-	s.blogs[newBlog.ID] = newBlog
+	s.blogs[newBlog.ID] = &newBlog
 
-	return newBlog, nil
+	_ = json.NewEncoder(ctx.ResponseWriter()).Encode(newBlog)
+	return nil
 }
 
 // Register all endpoints and launch the server
 func LaunchServer() (addr string, cancel func()) {
-	server, _ := espresso.New()
+	server, _ := espresso.Default()
 
 	service := &Service{
 		nextID: 1,

@@ -1,16 +1,18 @@
-package espresso
+package builder
 
 import (
 	"errors"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/googollee/go-espresso/basetype"
 )
 
 func TestBindParam(t *testing.T) {
 	tests := []struct {
 		key         string
-		bindType    BindType
+		source      basetype.BindSource
 		valueType   reflect.Type
 		valueString string
 
@@ -19,28 +21,28 @@ func TestBindParam(t *testing.T) {
 	}{
 		{
 			key:         "PathInt",
-			bindType:    BindPathParam,
+			source:      basetype.BindPathParam,
 			valueType:   reflect.TypeOf(int(0)),
 			valueString: "10",
 			wantValue:   int(10),
 		},
 		{
 			key:         "PathUint",
-			bindType:    BindPathParam,
+			source:      basetype.BindPathParam,
 			valueType:   reflect.TypeOf(uint(0)),
 			valueString: "10",
 			wantValue:   uint(10),
 		},
 		{
 			key:         "PathFloat64",
-			bindType:    BindPathParam,
+			source:      basetype.BindPathParam,
 			valueType:   reflect.TypeOf(float64(0)),
 			valueString: "10.1",
 			wantValue:   float64(10.1),
 		},
 		{
 			key:         "PathString",
-			bindType:    BindPathParam,
+			source:      basetype.BindPathParam,
 			valueType:   reflect.TypeOf(string("")),
 			valueString: "10",
 			wantValue:   "10",
@@ -48,28 +50,28 @@ func TestBindParam(t *testing.T) {
 
 		{
 			key:         "QueryInt",
-			bindType:    BindQueryParam,
+			source:      basetype.BindQueryParam,
 			valueType:   reflect.TypeOf(int(0)),
 			valueString: "10",
 			wantValue:   int(10),
 		},
 		{
 			key:         "QueryUint",
-			bindType:    BindQueryParam,
+			source:      basetype.BindQueryParam,
 			valueType:   reflect.TypeOf(uint(0)),
 			valueString: "10",
 			wantValue:   uint(10),
 		},
 		{
 			key:         "QueryFloat64",
-			bindType:    BindQueryParam,
+			source:      basetype.BindQueryParam,
 			valueType:   reflect.TypeOf(float64(0)),
 			valueString: "10.1",
 			wantValue:   float64(10.1),
 		},
 		{
 			key:         "QueryString",
-			bindType:    BindQueryParam,
+			source:      basetype.BindQueryParam,
 			valueType:   reflect.TypeOf(string("")),
 			valueString: "10",
 			wantValue:   "10",
@@ -77,28 +79,28 @@ func TestBindParam(t *testing.T) {
 
 		{
 			key:         "FormInt",
-			bindType:    BindFormParam,
+			source:      basetype.BindFormParam,
 			valueType:   reflect.TypeOf(int(0)),
 			valueString: "10",
 			wantValue:   int(10),
 		},
 		{
 			key:         "FormUint",
-			bindType:    BindFormParam,
+			source:      basetype.BindFormParam,
 			valueType:   reflect.TypeOf(uint(0)),
 			valueString: "10",
 			wantValue:   uint(10),
 		},
 		{
 			key:         "FormFloat64",
-			bindType:    BindFormParam,
+			source:      basetype.BindFormParam,
 			valueType:   reflect.TypeOf(float64(0)),
 			valueString: "10.1",
 			wantValue:   float64(10.1),
 		},
 		{
 			key:         "FormString",
-			bindType:    BindFormParam,
+			source:      basetype.BindFormParam,
 			valueType:   reflect.TypeOf(string("")),
 			valueString: "10",
 			wantValue:   "10",
@@ -106,28 +108,28 @@ func TestBindParam(t *testing.T) {
 
 		{
 			key:         "HeadInt",
-			bindType:    BindHeadParam,
+			source:      basetype.BindHeadParam,
 			valueType:   reflect.TypeOf(int(0)),
 			valueString: "10",
 			wantValue:   int(10),
 		},
 		{
 			key:         "HeadUint",
-			bindType:    BindHeadParam,
+			source:      basetype.BindHeadParam,
 			valueType:   reflect.TypeOf(uint(0)),
 			valueString: "10",
 			wantValue:   uint(10),
 		},
 		{
 			key:         "HeadFloat64",
-			bindType:    BindHeadParam,
+			source:      basetype.BindHeadParam,
 			valueType:   reflect.TypeOf(float64(0)),
 			valueString: "10.1",
 			wantValue:   float64(10.1),
 		},
 		{
 			key:         "HeadString",
-			bindType:    BindHeadParam,
+			source:      basetype.BindHeadParam,
 			valueType:   reflect.TypeOf(string("")),
 			valueString: "10",
 			wantValue:   "10",
@@ -136,13 +138,13 @@ func TestBindParam(t *testing.T) {
 		{
 			key:       "InvalidType",
 			valueType: reflect.TypeOf(int(0)),
-			bindType:  1000,
+			source:    1000,
 			wantError: `not support bind type 1000`,
 		},
 		{
 			key:       "InvalidValue",
 			valueType: reflect.TypeOf(struct{}{}),
-			bindType:  BindPathParam,
+			source:    basetype.BindPathParam,
 			wantError: `not support to bind path key "InvalidValue" to *struct {}`,
 		},
 	}
@@ -151,19 +153,19 @@ func TestBindParam(t *testing.T) {
 		t.Run(tc.key, func(t *testing.T) {
 			v := reflect.New(tc.valueType).Interface()
 
-			bindParam, err := newBindParam(tc.key, tc.bindType, v)
+			bindParam, err := newBindParam(tc.key, tc.source, v)
 			if err != nil || tc.wantError != "" {
 				errString := ""
 				if err != nil {
 					errString = err.Error()
 				}
 				if got, want := errString, tc.wantError; got != want {
-					t.Fatalf("newBindParam(%q, %v, new(%s)) = _, %q, want: %q", tc.key, tc.bindType, tc.valueType.String(), got, want)
+					t.Fatalf("newBindParam(%q, %v, new(%s)) = _, %q, want: %q", tc.key, tc.source, tc.valueType.String(), got, want)
 				}
 				return
 			}
 
-			if err := bindParam.fn(v, tc.valueString); err != nil {
+			if err := bindParam.Func(v, tc.valueString); err != nil {
 				t.Fatalf("newBindParam().fn(new(%s), %q) returns error: %v", tc.valueType.String(), tc.valueString, err)
 			}
 
@@ -176,10 +178,10 @@ func TestBindParam(t *testing.T) {
 
 func TestBindError(t *testing.T) {
 	underErr := errors.New("my error")
-	bErr := newBindError(BindParam{
-		Key:       "key",
-		Type:      BindPathParam,
-		ValueType: reflect.TypeOf(""),
+	bErr := basetype.ErrBind(basetype.BindParam{
+		Key:  "key",
+		From: basetype.BindPathParam,
+		Type: reflect.TypeOf(""),
 	}, underErr)
 
 	var err error = bErr
@@ -198,21 +200,21 @@ func TestBindErrors(t *testing.T) {
 	under1 := errors.New("my error1")
 	under2 := errors.New("my error2")
 	under3 := errors.New("my error3")
-	bErrs := BindErrors{
-		newBindError(BindParam{
-			Key:       "key1",
-			Type:      BindPathParam,
-			ValueType: reflect.TypeOf(""),
+	bErrs := basetype.BindErrors{
+		basetype.ErrBind(basetype.BindParam{
+			Key:  "key1",
+			From: basetype.BindPathParam,
+			Type: reflect.TypeOf(""),
 		}, under1),
-		newBindError(BindParam{
-			Key:       "key2",
-			Type:      BindQueryParam,
-			ValueType: reflect.TypeOf(1),
+		basetype.ErrBind(basetype.BindParam{
+			Key:  "key2",
+			From: basetype.BindQueryParam,
+			Type: reflect.TypeOf(1),
 		}, under2),
-		newBindError(BindParam{
-			Key:       "key3",
-			Type:      BindFormParam,
-			ValueType: reflect.TypeOf(true),
+		basetype.ErrBind(basetype.BindParam{
+			Key:  "key3",
+			From: basetype.BindFormParam,
+			Type: reflect.TypeOf(true),
 		}, under3),
 	}
 

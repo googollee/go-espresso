@@ -1,63 +1,18 @@
 package module
 
-import (
-	"context"
-	"slices"
-)
-
-type errBuildError struct {
-	name contextKey
-	err  error
-}
+import "context"
 
 type buildContext struct {
 	context.Context
-	mod      ModuleKey
-	dependOn map[contextKey]struct{}
-	repo     *Repo
+	repo    *Repo
+	depends map[key]struct{}
 }
 
-func newBuildContext(ctx context.Context, repo *Repo) *buildContext {
-	return &buildContext{
-		Context: ctx,
-		repo:    repo,
-	}
-}
-
-func (ctx *buildContext) Child(mod ModuleKey) *buildContext {
-	return &buildContext{
-		Context:  ctx.Context,
-		mod:      mod,
-		dependOn: make(map[contextKey]struct{}),
-		repo:     ctx.repo,
-	}
-}
-
-func (ctx *buildContext) Value(name any) any {
-	key, ok := name.(ModuleKey)
-	if !ok {
-		return ctx.Context.Value(name)
+func (c *buildContext) Value(k any) any {
+	if key, ok := k.(key); ok {
+		c.depends[key] = struct{}{}
+		return c.repo.Value(c, key)
 	}
 
-	ctx.dependOn[key.contextKey()] = struct{}{}
-
-	if ret := ctx.repo.Value(key); ret != nil {
-		return ret
-	}
-
-	if err := key.build(ctx); err != nil {
-		panic(errBuildError{name: key.contextKey(), err: err})
-	}
-
-	return ctx.repo.Value(key)
-}
-
-func (ctx *buildContext) addInstance(instance Instance) {
-	deps := make([]contextKey, 0, len(ctx.dependOn))
-	for key := range ctx.dependOn {
-		deps = append(deps, key)
-	}
-	slices.Sort(deps)
-
-	ctx.repo.addInstance(ctx.mod, deps, instance)
+	return c.Context.Value(k)
 }

@@ -2,23 +2,28 @@ package espresso
 
 import (
 	"context"
-	"log/slog"
+	"encoding/json"
 	"net/http"
 
+	"github.com/googollee/go-espresso/basetype"
+	"github.com/googollee/go-espresso/log"
 	"github.com/googollee/go-espresso/module"
+	"github.com/googollee/go-espresso/runtime"
 	"github.com/julienschmidt/httprouter"
 )
 
-type HandleFunc func(Context) error
-
-type ServerOption func(*Server) error
+type BindError = basetype.BindError
+type BindErrors = basetype.BindErrors
+type Context = basetype.Context
+type HandleFunc = basetype.HandleFunc
+type Endpoint = basetype.Endpoint
+type EndpointBuilder = basetype.EndpointBuilder
+type ServerOption = basetype.ServerOption
 
 type Server struct {
-	logger *slog.Logger
-	codecs codecManager
-	repo   *module.Repo
+	repo *module.Repo
 
-	Group
+	Router
 	endpoints []Endpoint
 	router    *httprouter.Router
 }
@@ -26,17 +31,13 @@ type Server struct {
 func New(opts ...ServerOption) (*Server, error) {
 	ret := &Server{
 		router: httprouter.New(),
-		logger: defaultLogger,
-		codecs: defaultManager(),
 		repo:   module.NewRepo(),
 	}
 
-	ret.Group = Group{
+	ret.Router = Router{
 		prefix: "/",
 		server: ret,
 	}
-
-	ret.Use(MiddlewareLogRequest)
 
 	for _, opt := range opts {
 		if err := opt(ret); err != nil {
@@ -47,14 +48,16 @@ func New(opts ...ServerOption) (*Server, error) {
 	return ret, nil
 }
 
-func (s *Server) AddModule(ctx context.Context, mod ...module.ModuleKey) error {
-	s.repo.Add(mod...)
-
-	if err := s.repo.Build(ctx); err != nil {
-		return err
+func Default(opts ...ServerOption) (*Server, error) {
+	defaultOptions := []ServerOption{
+		log.Use(),
 	}
+	opts = append(defaultOptions, opts...)
+	return New(opts...)
+}
 
-	return nil
+func (s *Server) AddModule(builders ...module.Builder) {
+	s.repo.Add(builders...)
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -62,38 +65,43 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) ListenAndServe(ctx context.Context, addr string) error {
-	if err := s.repo.Build(ctx); err != nil {
-		return err
-	}
-
-	s.logger.Info("Launch espresso server", "addr", addr)
 	return http.ListenAndServe(addr, s.router)
 }
 
-func (s *Server) registerEndpoint(endpoint *Endpoint, middle []HandleFunc, fn HandleFunc, fnSignature string) {
-	s.endpoints = append(s.endpoints, *endpoint)
+func (s *Server) registerEndpoint(endpoint Endpoint, middle []HandleFunc, fn HandleFunc, fnSignature string) {
+	s.endpoints = append(s.endpoints, endpoint)
 	handlers := append(middle[0:], fn)
 
-	s.logger.Info("Register", "method", endpoint.Method, "path", endpoint.Path, "handler", fnSignature)
-
 	s.router.Handle(endpoint.Method, endpoint.Path, func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-		reqCodec, respCodec := s.codecs.decideCodec(r)
-		var err error
-
-		ctx := runtimeContext{
-			Context:        r.Context(),
-			request:        r,
-			responseWriter: w,
-			pathParams:     p,
-			repo:           s.repo,
-			logger:         s.logger,
-			reqCodec:       reqCodec,
-			respCodec:      respCodec,
-			endpoint:       endpoint,
-			handlers:       handlers,
-			err:            &err,
+		resp := responseWriter{
+			ResponseWriter: w,
 		}
 
+		var err error
+		ctx := runtime.NewContext(r.Context(), runtime.Server{
+			Repo:     s.repo,
+			Endpoint: endpoint,
+			Handlers: handlers,
+			Error:    &err,
+		}, &resp, r, p)
+
 		ctx.Next()
+
+		if err == nil {
+			return
+		}
+
+		if resp.hasWritten {
+			return
+		}
+
+		code := http.StatusInternalServerError
+		if hc, ok := err.(HTTPCoder); ok {
+			code = hc.HTTPCode()
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(code)
+		_ = json.NewEncoder(w).Encode(err)
 	})
 }

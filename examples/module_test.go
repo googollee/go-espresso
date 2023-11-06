@@ -25,7 +25,7 @@ func (d *DB) CheckHealth(ctx context.Context) error {
 	return nil
 }
 
-var ModuleDB = module.New(NewDB)
+var ModuleDB = module.New[*DB]()
 
 type Cache struct {
 	Cache string
@@ -42,7 +42,7 @@ func (c *Cache) CheckHealth(ctx context.Context) error {
 	return nil
 }
 
-var ModuleCache = module.New(NewCache)
+var ModuleCache = module.New[*Cache]()
 
 type MessageQueue struct {
 	Queue string
@@ -58,7 +58,7 @@ func (r *MessageQueue) CheckHealth(ctx context.Context) error {
 	return nil
 }
 
-var ModuleMQ = module.New(NewMQ)
+var ModuleMQ = module.New[*MessageQueue]()
 
 func Handler(ctx espresso.Context) error {
 	if err := ctx.Endpoint(http.MethodGet, "/").End(); err != nil {
@@ -75,12 +75,9 @@ func Handler(ctx espresso.Context) error {
 }
 
 func LaunchModule() (addr string, cancel func()) {
-	server, _ := espresso.New()
+	server, _ := espresso.Default()
 
-	ctx := context.Background()
-	if err := server.AddModule(ctx, ModuleCache, ModuleMQ, ModuleDB); err != nil {
-		panic(err)
-	}
+	server.AddModule(ModuleCache.Builder(NewCache), ModuleMQ.Builder(NewMQ), ModuleDB.Builder(NewDB))
 
 	server.HandleFunc(Handler)
 

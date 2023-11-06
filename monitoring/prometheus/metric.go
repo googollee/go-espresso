@@ -1,11 +1,7 @@
 package prometheus
 
 import (
-	"net/http"
-
-	"github.com/googollee/go-espresso"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type GaugeOpts = prometheus.GaugeOpts
@@ -82,65 +78,4 @@ func NewUntypedFunc(opt UntypedOpts, fn func() float64) prometheus.UntypedFunc {
 	ret := prometheus.NewUntypedFunc(opt, fn)
 	prometheus.MustRegister(ret)
 	return ret
-}
-
-type Prometheus struct {
-	path      string
-	registry  prometheus.Registerer
-	gatherers prometheus.Gatherers
-}
-
-type Option func(*Prometheus)
-
-func WithPath(path string) Option {
-	return func(p *Prometheus) {
-		if path == "" {
-			return
-		}
-
-		p.path = path
-	}
-}
-
-func WithRegistry(registry *prometheus.Registry) Option {
-	return func(p *Prometheus) {
-		if registry == nil {
-			return
-		}
-
-		p.registry = registry
-	}
-}
-
-func WithGatherers(gatherer ...prometheus.Gatherer) Option {
-	return func(p *Prometheus) {
-		p.gatherers = gatherer
-	}
-}
-
-func New(opts ...Option) espresso.ServerOption {
-	p := Prometheus{
-		path:      "/metrics",
-		registry:  prometheus.DefaultRegisterer,
-		gatherers: []prometheus.Gatherer{prometheus.DefaultGatherer},
-	}
-
-	for _, opt := range opts {
-		opt(&p)
-	}
-
-	handler := promhttp.InstrumentMetricHandler(p.registry, promhttp.HandlerFor(p.gatherers, promhttp.HandlerOpts{}))
-
-	return func(s *espresso.Server) error {
-		s.HandleFunc(func(ctx espresso.Context) error {
-			if err := ctx.Endpoint(http.MethodGet, p.path).End(); err != nil {
-				return err
-			}
-
-			handler.ServeHTTP(ctx.ResponseWriter(), ctx.Request())
-			return nil
-		})
-
-		return nil
-	}
 }
