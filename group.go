@@ -1,30 +1,33 @@
 package espresso
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/googollee/go-espresso/builder"
 )
 
-type Group struct {
+type Router struct {
 	prefix      string
 	middlewares []HandleFunc
 	server      *Server
 }
 
-func (g *Group) WithPrefix(path string) *Group {
-	return &Group{
+func (g *Router) WithPrefix(path string) *Router {
+	return &Router{
 		prefix:      strings.TrimRight(g.prefix, "/") + "/" + strings.Trim(path, "/"),
 		middlewares: g.middlewares[0:len(g.middlewares)],
 		server:      g.server,
 	}
 }
 
-func (g *Group) Use(middleware ...HandleFunc) {
+func (g *Router) Use(middleware ...HandleFunc) {
 	g.middlewares = append(g.middlewares, middleware...)
 }
 
-func (g *Group) HandleAll(svc any) {
+func (g *Router) HandleAll(svc any) {
 	v := reflect.ValueOf(svc)
 
 	for i := 0; i < v.NumMethod(); i++ {
@@ -46,29 +49,27 @@ func (g *Group) HandleAll(svc any) {
 	}
 }
 
-func (g *Group) HandleFunc(fn HandleFunc) {
+func (g *Router) HandleFunc(fn HandleFunc) {
 	g.handleFunc(fn, fmt.Sprintf("%T", fn))
 }
 
-func (g *Group) handleFunc(fn HandleFunc, sig string) {
+func (g *Router) handleFunc(fn HandleFunc, sig string) {
 	var endpoint Endpoint
-	ctx := registerContext{
-		Context:  nil,
-		endpoint: &endpoint,
-	}
+	ctx := builder.NewContext(context.Background())
 
 	defer func() {
 		v := recover()
-		if v != errEndpointBuildEnd {
+		if v != builder.ErrEndpointBuildEnd {
 			if v == nil {
-				v = errRegisterContextCall
+				v = fmt.Errorf("should call Endpoint().End()")
 			}
 			panic(v)
 		}
+
 		endpoint.Path = strings.TrimRight(g.prefix, "/") + "/" + strings.Trim(endpoint.Path, "/")
 
-		g.server.registerEndpoint(&endpoint, g.middlewares, fn, sig)
+		g.server.registerEndpoint(ctx.EndpointDef, g.middlewares, fn, sig)
 	}()
 
-	_ = fn(&ctx)
+	_ = fn(ctx)
 }

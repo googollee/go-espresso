@@ -3,80 +3,56 @@ package module
 import (
 	"context"
 	"fmt"
-	"reflect"
 )
 
 type Instance interface {
-	CheckHealth(context.Context) error
+	CheckHealth(ctx context.Context) error
 }
 
-type BuildFunc[T Instance] func(context.Context) (T, error)
-
-type ModuleKey interface {
-	contextKey() contextKey
-	build(*buildContext) error
+type Key interface {
+	name() key
 }
-type contextKey string
+
+type key string
+
+func (k key) name() key {
+	return k
+}
+
+func (k key) String() string {
+	return fmt.Sprintf("module(%s)", string(k))
+}
 
 type Module[T Instance] struct {
-	ModuleKey
-	name    contextKey
-	buildFn BuildFunc[T]
+	key
 }
 
-func New[T Instance](buildFunc BuildFunc[T]) Module[T] {
+func New[T Instance]() Module[T] {
 	var t T
 	return Module[T]{
-		name:    contextKey(reflect.TypeOf(t).String()),
-		buildFn: buildFunc,
+		key: key(fmt.Sprintf("%T", t)),
 	}
 }
 
-func (m Module[T]) Value(ctx context.Context) (ret T) {
-	v := ctx.Value(m)
+func (m Module[T]) Value(ctx context.Context) T {
+	var zero T
+
+	v := ctx.Value(m.key)
 	if v == nil {
-		return
+		return zero
 	}
 
-	return v.(T)
-}
-
-func (m Module[T]) String() string {
-	return fmt.Sprintf("Module[%s]", m.name)
-}
-
-func (m Module[T]) contextKey() contextKey {
-	return m.name
-}
-
-func (m Module[T]) build(ctx *buildContext) (err error) {
-	t := ctx.Value(m.name)
-	if t != nil {
-		return nil
+	ret, ok := v.(T)
+	if !ok {
+		return zero
 	}
 
-	bctx := ctx.Child(m)
+	return ret
+}
 
-	defer func() {
-		p := recover()
-		if p == nil {
-			return
-		}
-
-		e, ok := p.(errBuildError)
-		if !ok {
-			panic(p)
-		}
-
-		err = fmt.Errorf("Module[%s] build error: %w", e.name, e.err)
-	}()
-
-	instance, err := m.buildFn(bctx)
-	if err != nil {
-		return fmt.Errorf("Module[%s] build error: %w", m.name, err)
+func (m Module[T]) Builder(fn BuildFunc[T]) Builder {
+	return &builder[T]{
+		key:     m.key,
+		buildFn: fn,
 	}
-
-	bctx.addInstance(instance)
-
-	return nil
 }

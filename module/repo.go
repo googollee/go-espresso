@@ -1,64 +1,62 @@
 package module
 
-import "context"
-
-type moduleWithInstance struct {
-	module    ModuleKey
-	dependsOn []contextKey
-	instance  Instance
-}
+import (
+	"context"
+	"fmt"
+)
 
 type Repo struct {
-	mods map[contextKey]moduleWithInstance
+	instances map[key]Instance
+	builders  map[key]Builder
+	depends   map[key][]key
 }
 
 func NewRepo() *Repo {
 	return &Repo{
-		mods: make(map[contextKey]moduleWithInstance),
+		instances: make(map[key]Instance),
+		builders:  make(map[key]Builder),
+		depends:   make(map[key][]key),
 	}
 }
 
-func (r *Repo) Add(mods ...ModuleKey) {
-	for _, mod := range mods {
-		r.mods[mod.contextKey()] = moduleWithInstance{
-			module: mod,
-		}
+func (r *Repo) Value(ctx context.Context, k Key) Instance {
+	ret, ok := r.instances[k.name()]
+	if ok {
+		return ret
 	}
-}
 
-func (r *Repo) Value(key ModuleKey) Instance {
-	m, ok := r.mods[key.contextKey()]
+	builder, ok := r.builders[k.name()]
 	if !ok {
 		return nil
 	}
 
-	return m.instance
-}
-
-func (r *Repo) Build(ctx context.Context) error {
-	var buildNames []contextKey
-	for key, mod := range r.mods {
-		if mod.instance == nil {
-			buildNames = append(buildNames, key)
-		}
+	bctx := &buildContext{
+		Context: ctx,
+		repo:    r,
+		depends: make(map[key]struct{}),
 	}
 
-	bctx := newBuildContext(ctx, r)
-
-	for _, name := range buildNames {
-		mod := r.mods[name]
-		if err := mod.module.build(bctx); err != nil {
-			return err
-		}
+	ret, err := builder.build(bctx)
+	if err != nil {
+		panic(errBuildPanic{error: fmt.Errorf("%s build fail: %w", k, err)})
 	}
 
-	return nil
+	r.instances[k.name()] = ret
+
+	var deps []key
+	if len(bctx.depends) > 0 {
+		deps = make([]key, 0, len(bctx.depends))
+		for k := range bctx.depends {
+			deps = append(deps, k)
+		}
+	}
+	r.depends[k.name()] = deps
+
+	return ret
 }
 
-func (r *Repo) addInstance(mod ModuleKey, deps []contextKey, instance Instance) {
-	r.mods[mod.contextKey()] = moduleWithInstance{
-		module:    mod,
-		dependsOn: deps,
-		instance:  instance,
+func (r *Repo) Add(builders ...Builder) {
+	for _, builder := range builders {
+		r.builders[builder.name()] = builder
 	}
 }
