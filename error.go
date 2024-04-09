@@ -1,10 +1,10 @@
 package espresso
 
-type HTTPCoder interface {
+type HTTPError interface {
 	HTTPCode() int
 }
 
-func ErrWithStatus(code int, err error) error {
+func Error(code int, err error) error {
 	return &httpError{
 		Message: err.Error(),
 
