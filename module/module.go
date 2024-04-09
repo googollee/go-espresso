@@ -1,3 +1,5 @@
+// Package module provides a way to do dependency injection, with type-safe, without performance penalty.
+// See examples for the basic usage.
 package module
 
 import (
@@ -5,33 +7,27 @@ import (
 	"fmt"
 )
 
-// Instance holds a instance which is injected with the module.
-type Instance interface {
-	// CheckHealth returns `nil` if the instance is health.
-	CheckHealth(ctx context.Context) error
-}
-
 // BuildFunc is the constructor of an Instance.
-type BuildFunc[T Instance] func(context.Context) (T, error)
+type BuildFunc[T any] func(context.Context) (T, error)
 
 type moduleKey string
 
 // Provider is the interface to provide an Instance.
 type Provider interface {
 	key() moduleKey
-	value(ctx context.Context) (Instance, error)
+	value(ctx context.Context) (any, error)
 }
 
 // Module provides a module to inject an instance with its type.
 // As Module implements Provider interface, a Module instance could be added into a Repo instance.
-type Module[T Instance] struct {
+type Module[T any] struct {
 	Provider
 	moduleKey moduleKey
 	builder   BuildFunc[T]
 }
 
 // New creates a new module with type `T` and the constructor `builder`.
-func New[T Instance](builder BuildFunc[T]) Module[T] {
+func New[T any](builder BuildFunc[T]) Module[T] {
 	var t T
 	return Module[T]{
 		moduleKey: moduleKey(fmt.Sprintf("%T", t)),
@@ -60,6 +56,6 @@ func (m Module[T]) key() moduleKey {
 	return m.moduleKey
 }
 
-func (m Module[T]) value(ctx context.Context) (Instance, error) {
+func (m Module[T]) value(ctx context.Context) (any, error) {
 	return m.builder(ctx)
 }

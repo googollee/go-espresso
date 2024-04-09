@@ -12,7 +12,7 @@ type createPanic struct {
 type moduleContext struct {
 	context.Context
 	providers map[moduleKey]Provider
-	instances map[moduleKey]Instance
+	instances map[moduleKey]any
 }
 
 func (c *moduleContext) Value(key any) any {

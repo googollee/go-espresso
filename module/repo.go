@@ -44,7 +44,7 @@ func (r *Repo) InjectTo(ctx context.Context) (ret context.Context, err error) {
 	ret = &moduleContext{
 		Context:   ctx,
 		providers: maps.Clone(r.providers),
-		instances: make(map[moduleKey]Instance),
+		instances: make(map[moduleKey]any),
 	}
 
 	for key := range r.providers {
