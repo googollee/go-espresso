@@ -34,9 +34,6 @@ type Cache struct {
 
 func NewCache(ctx context.Context) (*Cache, error) {
 	db := ModuleDB.Value(ctx)
-	if db == nil {
-		return nil, fmt.Errorf("no db as fallback")
-	}
 	return &Cache{
 		fallback: db,
 	}, nil
@@ -190,7 +187,7 @@ func ExampleModule_notExistingProvider() {
 	}
 
 	// Output:
-	// inject error: module *module_test.Cache creates an instance error: no db as fallback
+	// inject error: module module_test.DB creates an instance error: can't find module provideing "module_test.DB"
 }
 
 type FileSystem interface {
@@ -223,7 +220,7 @@ func (f *mockFileSystem) Write() {}
 func ExampleModule_duplicatingProviders() {
 	defer func() {
 		p := recover().(string)
-		fmt.Println("panic:", regexp.MustCompile(`at .*\/go-espresso`).ReplaceAllString(p, "at .../go-espresso"))
+		fmt.Println("panic:", regexp.MustCompile(`at .*`).ReplaceAllString(p, "at <removed file and line>"))
 	}()
 
 	repo := module.NewRepo()
@@ -231,5 +228,5 @@ func ExampleModule_duplicatingProviders() {
 	repo.AddModule(MockFileSystem)
 
 	// Output:
-	// panic: already have a provider with type "module_test.FileSystem", added at .../go-espresso/module/example_test.go:230
+	// panic: already have a provider with type "module_test.FileSystem", added at <removed file and line>
 }

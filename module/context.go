@@ -2,6 +2,7 @@ package module
 
 import (
 	"context"
+	"fmt"
 )
 
 type createPanic struct {
@@ -27,7 +28,7 @@ func (c *moduleContext) Value(key any) any {
 
 	provider, ok := c.providers[moduleKey]
 	if !ok {
-		return nil
+		panic(createPanic{key: moduleKey, err: fmt.Errorf("can't find module provideing %q", moduleKey)})
 	}
 
 	instance, err := provider.value(c)
