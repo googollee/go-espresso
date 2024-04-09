@@ -11,35 +11,36 @@ type DB struct {
 	target string
 }
 
-func (*DB) CheckHealth(context.Context) error { return nil }
+func NewDB(ctx context.Context) (*DB, error) {
+	return &DB{
+		target: "localhost.db",
+	}, nil
+}
+
+var ModuleDB = module.New(NewDB)
 
 type Cache struct {
 	fallback *DB
 }
 
-func (*Cache) CheckHealth(context.Context) error { return nil }
+func NewCache(ctx context.Context) (*Cache, error) {
+	db := ModuleDB.Value(ctx)
+	if db == nil {
+		return nil, fmt.Errorf("no db as fallback")
+	}
+	return &Cache{
+		fallback: db,
+	}, nil
+}
+
+var ModuleCache = module.New(NewCache)
 
 func ExampleModule() {
 	ctx := context.Background()
 
-	newDB := func(ctx context.Context) (*DB, error) {
-		return &DB{
-			target: "localhost.db",
-		}, nil
-	}
-	moduleDB := module.New(newDB)
-
-	newCache := func(ctx context.Context) (*Cache, error) {
-		db := moduleDB.Value(ctx)
-		return &Cache{
-			fallback: db,
-		}, nil
-	}
-	moduleCache := module.New(newCache)
-
 	repo := module.NewRepo()
-	repo.AddModule(moduleCache)
-	repo.AddModule(moduleDB)
+	repo.AddModule(ModuleCache)
+	repo.AddModule(ModuleDB)
 
 	ctx, err := repo.InjectTo(ctx)
 	if err != nil {
@@ -47,8 +48,8 @@ func ExampleModule() {
 		return
 	}
 
-	db := moduleDB.Value(ctx)
-	cache := moduleCache.Value(ctx)
+	db := ModuleDB.Value(ctx)
+	cache := ModuleCache.Value(ctx)
 
 	fmt.Println("db target:", db.target)
 	fmt.Println("cache fallback target:", cache.fallback.target)
@@ -169,24 +170,8 @@ func ExampleModule_createWithPanic() {
 func ExampleModule_notExistingProvider() {
 	ctx := context.Background()
 
-	newDB := func(ctx context.Context) (*DB, error) {
-		return &DB{
-			target: "localhost.db",
-		}, nil
-	}
-	moduleDB := module.New(newDB)
-
-	newCache := func(ctx context.Context) (*Cache, error) {
-		db := moduleDB.Value(ctx)
-		if db == nil {
-			return nil, fmt.Errorf("no db as fallback")
-		}
-		return &Cache{fallback: db}, nil
-	}
-	moduleCache := module.New(newCache)
-
 	repo := module.NewRepo()
-	repo.AddModule(moduleCache)
+	repo.AddModule(ModuleCache)
 	// repo.AddModule(moduleDB)
 
 	_, err := repo.InjectTo(ctx)
