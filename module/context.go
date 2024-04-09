@@ -1,18 +1,39 @@
 package module
 
-import "context"
+import (
+	"context"
+)
 
-type buildContext struct {
-	context.Context
-	repo    *Repo
-	depends map[key]struct{}
+type createPanic struct {
+	key moduleKey
+	err error
 }
 
-func (c *buildContext) Value(k any) any {
-	if key, ok := k.(key); ok {
-		c.depends[key] = struct{}{}
-		return c.repo.Value(c, key)
+type moduleContext struct {
+	context.Context
+	providers map[moduleKey]Provider
+	instances map[moduleKey]Instance
+}
+
+func (c *moduleContext) Value(key any) any {
+	moduleKey, ok := key.(moduleKey)
+	if !ok {
+		return c.Context.Value(key)
 	}
 
-	return c.Context.Value(k)
+	if instance, ok := c.instances[moduleKey]; ok {
+		return instance
+	}
+
+	provider, ok := c.providers[moduleKey]
+	if !ok {
+		return nil
+	}
+
+	instance, err := provider.value(c)
+	if err != nil {
+		panic(createPanic{key: moduleKey, err: err})
+	}
+	c.instances[moduleKey] = instance
+	return instance
 }

@@ -3,60 +3,53 @@ package module
 import (
 	"context"
 	"fmt"
+	"maps"
 )
 
+// Repo is a repository of modules, and to inject instances creating by modules into a context.
 type Repo struct {
-	instances map[key]Instance
-	builders  map[key]Builder
-	depends   map[key][]key
+	providers map[moduleKey]Provider
 }
 
+// NewRepo creates a Repo instance.
 func NewRepo() *Repo {
 	return &Repo{
-		instances: make(map[key]Instance),
-		builders:  make(map[key]Builder),
-		depends:   make(map[key][]key),
+		providers: make(map[moduleKey]Provider),
 	}
 }
 
-func (r *Repo) Value(ctx context.Context, k Key) Instance {
-	ret, ok := r.instances[k.name()]
-	if ok {
-		return ret
-	}
+// AddModule adds a module to the repo.
+// Module always implements Provider, so a module can be added directly.
+func (r *Repo) AddModule(provider Provider) {
+	r.providers[provider.key()] = provider
+}
 
-	builder, ok := r.builders[k.name()]
-	if !ok {
-		return nil
-	}
-
-	bctx := &buildContext{
-		Context: ctx,
-		repo:    r,
-		depends: make(map[key]struct{}),
-	}
-
-	ret, err := builder.build(bctx)
-	if err != nil {
-		panic(errBuildPanic{error: fmt.Errorf("%s build fail: %w", k, err)})
-	}
-
-	r.instances[k.name()] = ret
-
-	var deps []key
-	if len(bctx.depends) > 0 {
-		deps = make([]key, 0, len(bctx.depends))
-		for k := range bctx.depends {
-			deps = append(deps, k)
+// InjectTo injects instances created by modules into a context `ctx`.
+// It returns a new context with all injections. If any module creates an instance with an error, `InjectTo` returns that error with the module name.
+func (r *Repo) InjectTo(ctx context.Context) (ret context.Context, err error) {
+	defer func() {
+		rErr := recover()
+		if rErr == nil {
+			return
 		}
-	}
-	r.depends[k.name()] = deps
 
-	return ret
-}
+		createErr, ok := rErr.(createPanic)
+		if !ok {
+			panic(rErr)
+		}
 
-func (r *Repo) Add(builders ...Builder) {
-	for _, builder := range builders {
-		r.builders[builder.name()] = builder
+		err = fmt.Errorf("module %s creates an instance error: %w", createErr.key, createErr.err)
+	}()
+
+	ret = &moduleContext{
+		Context:   ctx,
+		providers: maps.Clone(r.providers),
+		instances: make(map[moduleKey]Instance),
 	}
+
+	for key := range r.providers {
+		_ = ret.Value(key)
+	}
+
+	return
 }
