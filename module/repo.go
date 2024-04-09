@@ -21,6 +21,9 @@ func NewRepo() *Repo {
 // AddModule adds a module to the repo.
 // Module always implements Provider, so a module can be added directly.
 func (r *Repo) AddModule(provider Provider) {
+	if _, ok := r.providers[provider.key()]; ok {
+		panic("already exist a provider with type " + provider.key())
+	}
 	r.providers[provider.key()] = provider
 }
 

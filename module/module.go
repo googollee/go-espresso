@@ -4,7 +4,7 @@ package module
 
 import (
 	"context"
-	"fmt"
+	"reflect"
 )
 
 // BuildFunc is the constructor of an Instance.
@@ -30,7 +30,7 @@ type Module[T any] struct {
 func New[T any](builder BuildFunc[T]) Module[T] {
 	var t T
 	return Module[T]{
-		moduleKey: moduleKey(fmt.Sprintf("%T", t)),
+		moduleKey: moduleKey(reflect.TypeOf(&t).Elem().String()),
 		builder:   builder,
 	}
 }
