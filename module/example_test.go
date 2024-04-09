@@ -3,6 +3,7 @@ package module_test
 import (
 	"context"
 	"fmt"
+	"regexp"
 
 	"github.com/googollee/go-espresso/module"
 )
@@ -221,8 +222,8 @@ func (f *mockFileSystem) Write() {}
 
 func ExampleModule_duplicatingProviders() {
 	defer func() {
-		p := recover()
-		fmt.Println("panic:", p)
+		p := recover().(string)
+		fmt.Println("panic:", regexp.MustCompile(`at .*\/go-espresso`).ReplaceAllString(p, "at .../go-espresso"))
 	}()
 
 	repo := module.NewRepo()
@@ -230,5 +231,5 @@ func ExampleModule_duplicatingProviders() {
 	repo.AddModule(MockFileSystem)
 
 	// Output:
-	// panic: already exist a provider with type module_test.FileSystem
+	// panic: already have a provider with type "module_test.FileSystem", added at .../go-espresso/module/example_test.go:230
 }
