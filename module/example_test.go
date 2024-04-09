@@ -22,10 +22,6 @@ func (*Cache) CheckHealth(context.Context) error { return nil }
 func ExampleModule() {
 	ctx := context.Background()
 
-	// type DB struct {
-	//   target string
-	// }
-	// func (*DB) CheckHealth(context.Context) error { return nil }
 	newDB := func(ctx context.Context) (*DB, error) {
 		return &DB{
 			target: "localhost.db",
@@ -33,10 +29,6 @@ func ExampleModule() {
 	}
 	moduleDB := module.New(newDB)
 
-	// type Cache struct {
-	//   fallback *DB
-	// }
-	// func (*Cache) CheckHealth(context.Context) error { return nil }
 	newCache := func(ctx context.Context) (*Cache, error) {
 		db := moduleDB.Value(ctx)
 		return &Cache{
@@ -58,8 +50,6 @@ func ExampleModule() {
 	db := moduleDB.Value(ctx)
 	cache := moduleCache.Value(ctx)
 
-	_ = db
-	_ = cache
 	fmt.Println("db target:", db.target)
 	fmt.Println("cache fallback target:", cache.fallback.target)
 
@@ -68,14 +58,10 @@ func ExampleModule() {
 	// cache fallback target: localhost.db
 }
 
-func ExampleModule_with_other_value() {
+func ExampleModule_withOtherValue() {
 	targetKey := "target"
 	ctx := context.WithValue(context.Background(), targetKey, "target.db")
 
-	// type DB struct {
-	//   target string
-	// }
-	// func (*DB) CheckHealth(context.Context) error { return nil }
 	newDB := func(ctx context.Context) (*DB, error) {
 		target := ctx.Value(targetKey).(string)
 		return &DB{
@@ -84,10 +70,6 @@ func ExampleModule_with_other_value() {
 	}
 	moduleDB := module.New(newDB)
 
-	// type Cache struct {
-	//   fallback *DB
-	// }
-	// func (*Cache) CheckHealth(context.Context) error { return nil }
 	newCache := func(ctx context.Context) (*Cache, error) {
 		db := moduleDB.Value(ctx)
 		return &Cache{
@@ -119,13 +101,9 @@ func ExampleModule_with_other_value() {
 	// cache fallback target: target.db
 }
 
-func ExampleModule_create_with_error() {
+func ExampleModule_createWithError() {
 	ctx := context.Background()
 
-	// type DB struct {
-	//   target string
-	// }
-	// func (*DB) CheckHealth(context.Context) error { return nil }
 	newDB := func(ctx context.Context) (*DB, error) {
 		return &DB{
 			target: "localhost.db",
@@ -133,10 +111,6 @@ func ExampleModule_create_with_error() {
 	}
 	moduleDB := module.New(newDB)
 
-	// type Cache struct {
-	//   fallback *DB
-	// }
-	// func (*Cache) CheckHealth(context.Context) error { return nil }
 	newCache := func(ctx context.Context) (*Cache, error) {
 		_ = moduleDB.Value(ctx)
 		return nil, fmt.Errorf("new cache error")
@@ -157,13 +131,9 @@ func ExampleModule_create_with_error() {
 	// inject error: module *module_test.Cache creates an instance error: new cache error
 }
 
-func ExampleModule_create_with_panic() {
+func ExampleModule_createWithPanic() {
 	ctx := context.Background()
 
-	// type DB struct {
-	//   target string
-	// }
-	// func (*DB) CheckHealth(context.Context) error { return nil }
 	newDB := func(ctx context.Context) (*DB, error) {
 		return &DB{
 			target: "localhost.db",
@@ -171,10 +141,6 @@ func ExampleModule_create_with_panic() {
 	}
 	moduleDB := module.New(newDB)
 
-	// type Cache struct {
-	//   fallback *DB
-	// }
-	// func (*Cache) CheckHealth(context.Context) error { return nil }
 	newCache := func(ctx context.Context) (*Cache, error) {
 		_ = moduleDB.Value(ctx)
 		panic(fmt.Errorf("new cache error"))
@@ -200,13 +166,9 @@ func ExampleModule_create_with_panic() {
 	// panic: new cache error
 }
 
-func ExampleModule_no_provider() {
+func ExampleModule_notExistingProvider() {
 	ctx := context.Background()
 
-	// type DB struct {
-	//   target string
-	// }
-	// func (*DB) CheckHealth(context.Context) error { return nil }
 	newDB := func(ctx context.Context) (*DB, error) {
 		return &DB{
 			target: "localhost.db",
@@ -214,10 +176,6 @@ func ExampleModule_no_provider() {
 	}
 	moduleDB := module.New(newDB)
 
-	// type Cache struct {
-	//   fallback *DB
-	// }
-	// func (*Cache) CheckHealth(context.Context) error { return nil }
 	newCache := func(ctx context.Context) (*Cache, error) {
 		db := moduleDB.Value(ctx)
 		if db == nil {
@@ -229,6 +187,7 @@ func ExampleModule_no_provider() {
 
 	repo := module.NewRepo()
 	repo.AddModule(moduleCache)
+	// repo.AddModule(moduleDB)
 
 	_, err := repo.InjectTo(ctx)
 	if err != nil {
