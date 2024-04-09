@@ -46,3 +46,33 @@ func TestProviderReturnNilPointerWithoutError(t *testing.T) {
 		t.Errorf("moduleInstance.Value(ctx) = %v, want: nil", got)
 	}
 }
+
+func TestModuleKeyIsNotString(t *testing.T) {
+	type Instance struct{}
+	newNilInstance := func(context.Context) (*Instance, error) {
+		return &Instance{}, nil
+	}
+	moduleInstance := New(newNilInstance)
+
+	repo := NewRepo()
+	repo.AddModule(moduleInstance)
+
+	ctx, err := repo.InjectTo(context.Background())
+	if err != nil {
+		t.Fatal("inject error:", err)
+	}
+
+	if got := moduleInstance.Value(ctx); got == nil {
+		t.Errorf("moduleInstance.Value(ctx) = nil, want: not nil")
+	}
+
+	key := moduleInstance.key()
+	if got := ctx.Value(key); got == nil {
+		t.Errorf("moduleInstance.Value(ctx) = nil, want: not nil")
+	}
+
+	keyAsStr := string(key)
+	if got := ctx.Value(keyAsStr); got != nil {
+		t.Errorf("ctx.Value(string(%q)) = %v, want: nil", keyAsStr, got)
+	}
+}
