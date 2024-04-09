@@ -44,17 +44,7 @@ func (r *Repo) AddModule(provider Provider) {
 // It returns a new context with all injections. If any module creates an instance with an error, `InjectTo` returns that error with the module name.
 func (r *Repo) InjectTo(ctx context.Context) (ret context.Context, err error) {
 	defer func() {
-		rErr := recover()
-		if rErr == nil {
-			return
-		}
-
-		createErr, ok := rErr.(createPanic)
-		if !ok {
-			panic(rErr)
-		}
-
-		err = fmt.Errorf("module %s creates an instance error: %w", createErr.key, createErr.err)
+		err = r.catchError(recover())
 	}()
 
 	providers := make(map[moduleKey]Provider)
@@ -73,4 +63,17 @@ func (r *Repo) InjectTo(ctx context.Context) (ret context.Context, err error) {
 	}
 
 	return
+}
+
+func (r *Repo) catchError(err any) error {
+	if err == nil {
+		return nil
+	}
+
+	createErr, ok := err.(createPanic)
+	if !ok {
+		panic(err)
+	}
+
+	return fmt.Errorf("creating with module %s: %w", createErr.key, createErr.err)
 }

@@ -5,6 +5,8 @@ import (
 	"fmt"
 )
 
+var ErrNoPrivoder = fmt.Errorf("can't find module")
+
 type createPanic struct {
 	key moduleKey
 	err error
@@ -28,7 +30,7 @@ func (c *moduleContext) Value(key any) any {
 
 	provider, ok := c.providers[moduleKey]
 	if !ok {
-		panic(createPanic{key: moduleKey, err: fmt.Errorf("can't find module provideing %q", moduleKey)})
+		panic(createPanic{key: moduleKey, err: ErrNoPrivoder})
 	}
 
 	instance, err := provider.value(c)

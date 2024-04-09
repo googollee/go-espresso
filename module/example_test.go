@@ -135,7 +135,7 @@ func ExampleModule_createWithError() {
 	}
 
 	// Output:
-	// inject error: module *module_test.Cache creates an instance error: new cache error
+	// inject error: creating with module *module_test.Cache: new cache error
 }
 
 func ExampleModule_createWithPanic() {
@@ -187,7 +187,7 @@ func ExampleModule_notExistingProvider() {
 	}
 
 	// Output:
-	// inject error: module module_test.DB creates an instance error: can't find module provideing "module_test.DB"
+	// inject error: creating with module module_test.DB: can't find module
 }
 
 type FileSystem interface {

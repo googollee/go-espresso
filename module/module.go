@@ -44,12 +44,7 @@ func (m Module[T]) Value(ctx context.Context) T {
 		return null
 	}
 
-	ret, ok := v.(T)
-	if !ok {
-		return null
-	}
-
-	return ret
+	return v.(T)
 }
 
 func (m Module[T]) key() moduleKey {
