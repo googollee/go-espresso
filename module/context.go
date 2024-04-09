@@ -5,6 +5,8 @@ import (
 	"fmt"
 )
 
+// ErrNoPrivoder means that it can't find a module within a given context.
+// Usually it misses adding that module to a repo.
 var ErrNoPrivoder = fmt.Errorf("can't find module")
 
 type createPanic struct {
