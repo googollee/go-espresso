@@ -2,6 +2,7 @@ package codec
 
 import (
 	"context"
+	"io"
 	"net/http"
 )
 
@@ -13,6 +14,6 @@ type Context interface {
 
 type Codec interface {
 	Mime() string
-	EncodeResponse(ctx Context, v any) error
-	DecodeRequest(ctx Context, v any) error
+	Encode(ctx context.Context, w io.Writer, v any) error
+	Decode(ctx context.Context, r io.Reader, v any) error
 }

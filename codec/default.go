@@ -1,7 +1,9 @@
 package codec
 
 import (
+	"context"
 	"encoding/json"
+	"io"
 
 	"gopkg.in/yaml.v3"
 )
@@ -12,12 +14,12 @@ func (JSON) Mime() string {
 	return "application/json"
 }
 
-func (JSON) DecodeRequest(ctx Context, v any) error {
-	return json.NewDecoder(ctx.Request().Body).Decode(v)
+func (JSON) Decode(ctx context.Context, r io.Reader, v any) error {
+	return json.NewDecoder(r).Decode(v)
 }
 
-func (JSON) EncodeResponse(ctx Context, v any) error {
-	return json.NewEncoder(ctx.ResponseWriter()).Encode(v)
+func (JSON) Encode(ctx context.Context, w io.Writer, v any) error {
+	return json.NewEncoder(w).Encode(v)
 }
 
 type YAML struct{}
@@ -26,12 +28,12 @@ func (YAML) Mime() string {
 	return "application/yaml"
 }
 
-func (YAML) DecodeRequest(ctx Context, v any) error {
-	return yaml.NewDecoder(ctx.Request().Body).Decode(v)
+func (YAML) Decode(ctx context.Context, r io.Reader, v any) error {
+	return yaml.NewDecoder(r).Decode(v)
 }
 
-func (YAML) EncodeResponse(ctx Context, v any) error {
-	encoder := yaml.NewEncoder(ctx.ResponseWriter())
+func (YAML) Encode(ctx context.Context, w io.Writer, v any) error {
+	encoder := yaml.NewEncoder(w)
 	defer encoder.Close()
 
 	return encoder.Encode(v)

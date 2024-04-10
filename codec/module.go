@@ -67,3 +67,11 @@ func (c *Codecs) getCodec(ctx Context, head string) Codec {
 
 	return ret
 }
+
+func (c *Codecs) DecodeRequest(ctx Context, v any) error {
+	return c.Request(ctx).Decode(ctx, ctx.Request().Body, v)
+}
+
+func (c *Codecs) EncodeResponse(ctx Context, v any) error {
+	return c.Response(ctx).Encode(ctx, ctx.ResponseWriter(), v)
+}
