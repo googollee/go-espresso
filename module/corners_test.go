@@ -14,7 +14,7 @@ func TestProviderReturnNilInterfaceWithoutError(t *testing.T) {
 	provideNil := moduleInterface.ProvideWithFunc(newNilInterface)
 
 	repo := NewRepo()
-	repo.AddModule(provideNil)
+	repo.Add(provideNil)
 
 	ctx, err := repo.InjectTo(context.Background())
 	if err != nil {
@@ -36,7 +36,7 @@ func TestProviderReturnNilPointerWithoutError(t *testing.T) {
 	provideNil := moduleInstance.ProvideWithFunc(newNilInstance)
 
 	repo := NewRepo()
-	repo.AddModule(provideNil)
+	repo.Add(provideNil)
 
 	ctx, err := repo.InjectTo(context.Background())
 	if err != nil {
@@ -58,7 +58,7 @@ func TestModuleKeyIsNotString(t *testing.T) {
 	provideNil := moduleInstance.ProvideWithFunc(newNilInstance)
 
 	repo := NewRepo()
-	repo.AddModule(provideNil)
+	repo.Add(provideNil)
 
 	ctx, err := repo.InjectTo(context.Background())
 	if err != nil {

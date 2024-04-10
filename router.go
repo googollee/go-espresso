@@ -3,57 +3,35 @@ package espresso
 import (
 	"context"
 	"fmt"
-	"reflect"
+	"net/http"
 	"strings"
 
 	"github.com/googollee/go-espresso/builder"
 )
 
-type Router struct {
+type router struct {
 	prefix      string
 	middlewares []HandleFunc
-	server      *Server
+	mux         *http.ServeMux
 }
 
-func (g *Router) WithPrefix(path string) *Router {
-	return &Router{
+func (g *router) WithPrefix(path string) *router {
+	return &router{
 		prefix:      strings.TrimRight(g.prefix, "/") + "/" + strings.Trim(path, "/"),
 		middlewares: g.middlewares[0:len(g.middlewares)],
-		server:      g.server,
+		mux:         g.mux,
 	}
 }
 
-func (g *Router) Use(middleware ...HandleFunc) {
+func (g *router) Use(middleware ...HandleFunc) {
 	g.middlewares = append(g.middlewares, middleware...)
 }
 
-func (g *Router) HandleAll(svc any) {
-	v := reflect.ValueOf(svc)
-
-	for i := 0; i < v.NumMethod(); i++ {
-		method := v.Method(i)
-		fn, ok := method.Interface().(func(Context) error)
-		if !ok {
-			continue
-		}
-
-		t := v.Type()
-		sig := t.Method(i).Name
-
-		if t.Kind() == reflect.Ptr {
-			t = t.Elem()
-		}
-		sig = t.String() + "." + sig
-
-		g.handleFunc(fn, sig)
-	}
-}
-
-func (g *Router) HandleFunc(fn HandleFunc) {
+func (g *router) HandleFunc(fn HandleFunc) {
 	g.handleFunc(fn, fmt.Sprintf("%T", fn))
 }
 
-func (g *Router) handleFunc(fn HandleFunc, sig string) {
+func (g *router) handleFunc(fn HandleFunc, sig string) {
 	var endpoint Endpoint
 	ctx := builder.NewContext(context.Background())
 
@@ -72,4 +50,12 @@ func (g *Router) handleFunc(fn HandleFunc, sig string) {
 	}()
 
 	_ = fn(ctx)
+}
+
+func (g *router) register(endpoint *Endpoint) {
+	path := strings.TrimRight(g.prefix, "/") + "/" + strings.TrimLeft(endpoint.Path, "/")
+	middlewares := append(g.middlewares, endpoint.MiddlewareFuncs...)
+
+	g.mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+	})
 }

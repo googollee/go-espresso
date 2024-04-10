@@ -35,8 +35,8 @@ var (
 
 func BenchmarkThroughModuleValue(b *testing.B) {
 	repo := NewRepo()
-	repo.AddModule(provideDB)
-	repo.AddModule(provideCache)
+	repo.Add(provideDB)
+	repo.Add(provideCache)
 
 	ctx, err := repo.InjectTo(context.Background())
 	if err != nil {

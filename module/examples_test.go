@@ -51,8 +51,8 @@ func ExampleModule() {
 	ctx := context.Background()
 
 	repo := module.NewRepo()
-	repo.AddModule(ProvideCache)
-	repo.AddModule(ProvideDB)
+	repo.Add(ProvideCache)
+	repo.Add(ProvideDB)
 
 	ctx, err := repo.InjectTo(ctx)
 	if err != nil {
@@ -76,13 +76,13 @@ func ExampleModule_withOtherValue() {
 	ctx := context.WithValue(context.Background(), targetKey, "target.db")
 
 	repo := module.NewRepo()
-	repo.AddModule(ModuleDB.ProvideWithFunc(func(ctx context.Context) (DB, error) {
+	repo.Add(ModuleDB.ProvideWithFunc(func(ctx context.Context) (DB, error) {
 		target := ctx.Value(targetKey).(string)
 		return &db{
 			target: target,
 		}, nil
 	}))
-	repo.AddModule(ModuleCache.ProvideWithFunc(func(ctx context.Context) (*Cache, error) {
+	repo.Add(ModuleCache.ProvideWithFunc(func(ctx context.Context) (*Cache, error) {
 		db := ModuleDB.Value(ctx)
 		return &Cache{
 			fallback: db,
@@ -110,12 +110,12 @@ func ExampleModule_createWithError() {
 	ctx := context.Background()
 
 	repo := module.NewRepo()
-	repo.AddModule(ModuleDB.ProvideWithFunc(func(ctx context.Context) (DB, error) {
+	repo.Add(ModuleDB.ProvideWithFunc(func(ctx context.Context) (DB, error) {
 		return &db{
 			target: "localhost.db",
 		}, nil
 	}))
-	repo.AddModule(ModuleCache.ProvideWithFunc(func(ctx context.Context) (*Cache, error) {
+	repo.Add(ModuleCache.ProvideWithFunc(func(ctx context.Context) (*Cache, error) {
 		_ = ModuleDB.Value(ctx)
 		return nil, fmt.Errorf("new cache error")
 	}))
@@ -134,12 +134,12 @@ func ExampleModule_createWithPanic() {
 	ctx := context.Background()
 
 	repo := module.NewRepo()
-	repo.AddModule(ModuleDB.ProvideWithFunc(func(ctx context.Context) (DB, error) {
+	repo.Add(ModuleDB.ProvideWithFunc(func(ctx context.Context) (DB, error) {
 		return &db{
 			target: "localhost.db",
 		}, nil
 	}))
-	repo.AddModule(ModuleCache.ProvideWithFunc(func(ctx context.Context) (*Cache, error) {
+	repo.Add(ModuleCache.ProvideWithFunc(func(ctx context.Context) (*Cache, error) {
 		_ = ModuleDB.Value(ctx)
 		panic(fmt.Errorf("new cache error"))
 	}))
@@ -163,8 +163,8 @@ func ExampleModule_notExistingProvider() {
 	ctx := context.Background()
 
 	repo := module.NewRepo()
-	repo.AddModule(ProvideCache)
-	// repo.AddModule(ProvideDB)
+	repo.Add(ProvideCache)
+	// repo.Add(ProvideDB)
 
 	_, err := repo.InjectTo(ctx)
 	if err != nil {
@@ -212,8 +212,8 @@ func ExampleModule_duplicatingProviders() {
 	}()
 
 	repo := module.NewRepo()
-	repo.AddModule(ProvideRealFileSystem)
-	repo.AddModule(ProvideMockFileSystem)
+	repo.Add(ProvideRealFileSystem)
+	repo.Add(ProvideMockFileSystem)
 
 	// Output:
 	// panic: already have a provider with type "module_test.FileSystem", added at <removed file and line>

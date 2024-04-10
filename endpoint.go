@@ -43,8 +43,6 @@ type BindParam struct {
 	Func BindFunc
 }
 
-type BindOption func(b *BindParam) error
-
 type Endpoint struct {
 	Method          string
 	Path            string
@@ -63,7 +61,7 @@ type BindError struct {
 	Err  error
 }
 
-func ErrBind(bind BindParam, err error) BindError {
+func errorBind(bind BindParam, err error) BindError {
 	return BindError{
 		Key:  bind.Key,
 		From: bind.From,
@@ -106,9 +104,6 @@ func (e BindErrors) Unwrap() []error {
 }
 
 type EndpointBuilder interface {
-	BindQuery(key string, v any, opts ...BindOption) EndpointBuilder
-	BindForm(key string, v any, opts ...BindOption) EndpointBuilder
-	BindPath(key string, v any, opts ...BindOption) EndpointBuilder
-	BindHead(key string, v any, opts ...BindOption) EndpointBuilder
+	BindPath(key string, v any) EndpointBuilder
 	End() BindErrors
 }

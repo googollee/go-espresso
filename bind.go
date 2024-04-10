@@ -1,24 +1,22 @@
-package builder
+package espresso
 
 import (
 	"fmt"
 	"reflect"
 	"strconv"
-
-	"github.com/googollee/go-espresso/basetype"
 )
 
-func newBindParam(key string, src basetype.BindSource, v any) (basetype.BindParam, error) {
+func newBindParam(key string, src BindSource, v any) (BindParam, error) {
 	vt, fn := getBindFunc(v)
 	if fn == nil {
-		return basetype.BindParam{}, fmt.Errorf("not support to bind %s key %q to %T", src, key, v)
+		return BindParam{}, fmt.Errorf("not support to bind %s key %q to %T", src, key, v)
 	}
 
 	if !src.Valid() {
-		return basetype.BindParam{}, fmt.Errorf("not support bind type %d", src)
+		return BindParam{}, fmt.Errorf("not support bind type %d", src)
 	}
 
-	return basetype.BindParam{
+	return BindParam{
 		Key:  key,
 		From: src,
 		Type: vt,
@@ -30,7 +28,7 @@ type integer interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64
 }
 
-func bindInt[T integer](bitSize int) (reflect.Type, basetype.BindFunc) {
+func bindInt[T integer](bitSize int) (reflect.Type, BindFunc) {
 	return reflect.TypeOf(T(0)), func(v any, param string) error {
 		i, err := strconv.ParseInt(param, 10, bitSize)
 		if err != nil {
@@ -46,7 +44,7 @@ type uinteger interface {
 	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64
 }
 
-func bindUint[T uinteger](bitSize int) (reflect.Type, basetype.BindFunc) {
+func bindUint[T uinteger](bitSize int) (reflect.Type, BindFunc) {
 	return reflect.TypeOf(T(0)), func(v any, param string) error {
 		i, err := strconv.ParseUint(param, 10, bitSize)
 		if err != nil {
@@ -62,7 +60,7 @@ type float interface {
 	~float32 | ~float64
 }
 
-func bindFloat[T float](bitSize int) (reflect.Type, basetype.BindFunc) {
+func bindFloat[T float](bitSize int) (reflect.Type, BindFunc) {
 	return reflect.TypeOf(T(0)), func(v any, param string) error {
 		i, err := strconv.ParseFloat(param, bitSize)
 		if err != nil {
@@ -74,7 +72,7 @@ func bindFloat[T float](bitSize int) (reflect.Type, basetype.BindFunc) {
 	}
 }
 
-func bindString[T ~string]() (reflect.Type, basetype.BindFunc) {
+func bindString[T ~string]() (reflect.Type, BindFunc) {
 	return reflect.TypeOf(T("")), func(v any, param string) error {
 		p := v.(*T)
 		*p = T(param)
@@ -82,7 +80,7 @@ func bindString[T ~string]() (reflect.Type, basetype.BindFunc) {
 	}
 }
 
-func getBindFunc(v any) (reflect.Type, basetype.BindFunc) {
+func getBindFunc(v any) (reflect.Type, BindFunc) {
 	switch v.(type) {
 	case *string:
 		return bindString[string]()
@@ -114,4 +112,3 @@ func getBindFunc(v any) (reflect.Type, basetype.BindFunc) {
 
 	return nil, nil
 }
-
