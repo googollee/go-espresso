@@ -7,7 +7,10 @@ import (
 	"github.com/googollee/go-espresso/module"
 )
 
-var Module = module.New(Default)
+var (
+	Module   = module.New[*Codecs]()
+	Provider = Module.ProvideWithFunc(Default)
+)
 
 type Codecs struct {
 	fallback Codec
@@ -15,14 +18,18 @@ type Codecs struct {
 }
 
 func Default(context.Context) (*Codecs, error) {
-	json := JSON{}
+	defaults := []Codec{JSON{}, YAML{}}
 
-	return &Codecs{
-		fallback: json,
-		codecs: map[string]Codec{
-			json.Mime(): json,
-		},
-	}, nil
+	ret := &Codecs{
+		fallback: defaults[0],
+		codecs:   make(map[string]Codec),
+	}
+
+	for _, c := range defaults {
+		ret.codecs[c.Mime()] = c
+	}
+
+	return ret, nil
 }
 
 func (c *Codecs) Request(ctx Context) Codec {

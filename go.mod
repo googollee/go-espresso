@@ -6,6 +6,7 @@ require (
 	github.com/googollee/assert v0.1.1
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/prometheus/client_golang v1.17.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
