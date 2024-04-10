@@ -15,10 +15,6 @@ func NewDB(ctx context.Context) (*DB, error) {
 	}, nil
 }
 
-var moduleDB = New(NewDB)
-
-func (*DB) CheckHealth(context.Context) error { return nil }
-
 type Cache struct {
 	fallback *DB
 }
@@ -30,14 +26,17 @@ func NewCache(ctx context.Context) (*Cache, error) {
 	}, nil
 }
 
-var moduleCache = New(NewCache)
-
-func (*Cache) CheckHealth(context.Context) error { return nil }
+var (
+	moduleDB     = New[*DB]()
+	moduleCache  = New[*Cache]()
+	provideDB    = moduleDB.ProvideWithFunc(NewDB)
+	provideCache = moduleCache.ProvideWithFunc(NewCache)
+)
 
 func BenchmarkThroughModuleValue(b *testing.B) {
 	repo := NewRepo()
-	repo.AddModule(moduleDB)
-	repo.AddModule(moduleCache)
+	repo.AddModule(provideDB)
+	repo.AddModule(provideCache)
 
 	ctx, err := repo.InjectTo(context.Background())
 	if err != nil {
@@ -57,16 +56,16 @@ func BenchmarkSimpleContextValue(b *testing.B) {
 	if err != nil {
 		b.Fatal("create db error:", err)
 	}
-	ctx = context.WithValue(ctx, moduleDB.key(), db)
+	ctx = context.WithValue(ctx, moduleDB.moduleKey, db)
 
 	cache, err := NewCache(ctx)
 	if err != nil {
 		b.Fatal("create cache error:", err)
 	}
-	ctx = context.WithValue(ctx, moduleCache.key(), cache)
+	ctx = context.WithValue(ctx, moduleCache.moduleKey, cache)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		var _ *Cache = ctx.Value(moduleCache.key()).(*Cache)
+		var _ *Cache = ctx.Value(moduleCache.moduleKey).(*Cache)
 	}
 }

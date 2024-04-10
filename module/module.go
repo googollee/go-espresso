@@ -12,26 +12,16 @@ type BuildFunc[T any] func(context.Context) (T, error)
 
 type moduleKey string
 
-// Provider is the interface to provide an Instance.
-type Provider interface {
-	key() moduleKey
-	value(ctx context.Context) (any, error)
-}
-
-// Module provides a module to inject an instance with its type.
-// As Module implements Provider interface, a Module instance could be added into a Repo instance.
+// Module provides a module to inject and retreive an instance with its type.
 type Module[T any] struct {
-	Provider
 	moduleKey moduleKey
-	builder   BuildFunc[T]
 }
 
 // New creates a new module with type `T` and the constructor `builder`.
-func New[T any](builder BuildFunc[T]) Module[T] {
+func New[T any]() Module[T] {
 	var t T
 	return Module[T]{
 		moduleKey: moduleKey(reflect.TypeOf(&t).Elem().String()),
-		builder:   builder,
 	}
 }
 
@@ -45,12 +35,4 @@ func (m Module[T]) Value(ctx context.Context) T {
 	}
 
 	return v.(T)
-}
-
-func (m Module[T]) key() moduleKey {
-	return m.moduleKey
-}
-
-func (m Module[T]) value(ctx context.Context) (any, error) {
-	return m.builder(ctx)
 }

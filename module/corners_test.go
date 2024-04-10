@@ -10,10 +10,11 @@ func TestProviderReturnNilInterfaceWithoutError(t *testing.T) {
 	newNilInterface := func(context.Context) (Interface, error) {
 		return nil, nil
 	}
-	moduleInterface := New(newNilInterface)
+	moduleInterface := New[Interface]()
+	provideNil := moduleInterface.ProvideWithFunc(newNilInterface)
 
 	repo := NewRepo()
-	repo.AddModule(moduleInterface)
+	repo.AddModule(provideNil)
 
 	ctx, err := repo.InjectTo(context.Background())
 	if err != nil {
@@ -31,10 +32,11 @@ func TestProviderReturnNilPointerWithoutError(t *testing.T) {
 	newNilInstance := func(context.Context) (*Instance, error) {
 		return nil, nil
 	}
-	moduleInstance := New(newNilInstance)
+	moduleInstance := New[*Instance]()
+	provideNil := moduleInstance.ProvideWithFunc(newNilInstance)
 
 	repo := NewRepo()
-	repo.AddModule(moduleInstance)
+	repo.AddModule(provideNil)
 
 	ctx, err := repo.InjectTo(context.Background())
 	if err != nil {
@@ -52,10 +54,11 @@ func TestModuleKeyIsNotString(t *testing.T) {
 	newNilInstance := func(context.Context) (*Instance, error) {
 		return &Instance{}, nil
 	}
-	moduleInstance := New(newNilInstance)
+	moduleInstance := New[*Instance]()
+	provideNil := moduleInstance.ProvideWithFunc(newNilInstance)
 
 	repo := NewRepo()
-	repo.AddModule(moduleInstance)
+	repo.AddModule(provideNil)
 
 	ctx, err := repo.InjectTo(context.Background())
 	if err != nil {
@@ -66,7 +69,7 @@ func TestModuleKeyIsNotString(t *testing.T) {
 		t.Errorf("moduleInstance.Value(ctx) = nil, want: not nil")
 	}
 
-	key := moduleInstance.key()
+	key := moduleInstance.moduleKey
 	if got := ctx.Value(key); got == nil {
 		t.Errorf("moduleInstance.Value(ctx) = nil, want: not nil")
 	}
