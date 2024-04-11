@@ -16,7 +16,7 @@ jobs:
         - '1.22'
         - 'tip'
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up Go
       if: matrix.go != 'tip'
