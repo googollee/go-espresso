@@ -51,14 +51,14 @@ func TestProviderReturnNilPointerWithoutError(t *testing.T) {
 
 func TestModuleKeyIsNotString(t *testing.T) {
 	type Instance struct{}
-	newNilInstance := func(context.Context) (*Instance, error) {
+	newInstance := func(context.Context) (*Instance, error) {
 		return &Instance{}, nil
 	}
 	moduleInstance := New[*Instance]()
-	provideNil := moduleInstance.ProvideWithFunc(newNilInstance)
+	provider := moduleInstance.ProvideWithFunc(newInstance)
 
 	repo := NewRepo()
-	repo.Add(provideNil)
+	repo.Add(provider)
 
 	ctx, err := repo.InjectTo(context.Background())
 	if err != nil {
@@ -77,5 +77,39 @@ func TestModuleKeyIsNotString(t *testing.T) {
 	keyAsStr := string(key)
 	if got := ctx.Value(keyAsStr); got != nil {
 		t.Errorf("ctx.Value(string(%q)) = %v, want: nil", keyAsStr, got)
+	}
+}
+
+func TestSameInstanceBetweenInject(t *testing.T) {
+	type Instance struct{}
+	newCount := 0
+	newInstance := func(context.Context) (*Instance, error) {
+		newCount++
+		return &Instance{}, nil
+	}
+	moduleInstance := New[*Instance]()
+	provider := moduleInstance.ProvideWithFunc(newInstance)
+
+	repo := NewRepo()
+	repo.Add(provider)
+
+	ctx1, err := repo.InjectTo(context.Background())
+	if err != nil {
+		t.Fatal("inject error:", err)
+	}
+	instance1 := moduleInstance.Value(ctx1)
+
+	ctx2, err := repo.InjectTo(context.Background())
+	if err != nil {
+		t.Fatal("inject error:", err)
+	}
+	instance2 := moduleInstance.Value(ctx2)
+
+	if instance1 != instance2 {
+		t.Fatal("different instances.")
+	}
+
+	if newCount != 1 {
+		t.Fatalf("newInstance was run %d times, which should be only 1.", newCount)
 	}
 }
