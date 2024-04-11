@@ -46,6 +46,7 @@ func (s *Espresso) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
+
 	r = r.WithContext(ctx)
 	s.mux.ServeHTTP(w, r)
 }

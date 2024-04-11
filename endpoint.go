@@ -1,7 +1,5 @@
 package espresso
 
-import "net/http"
-
 type EndpointBuilder interface {
 	BindPath(key string, v any) EndpointBuilder
 	End() BindErrors
@@ -24,19 +22,4 @@ func newEndpoint() *Endpoint {
 		FormParams:  make(map[string]BindParam),
 		HeadParams:  make(map[string]BindParam),
 	}
-}
-
-func (e *Endpoint) serveHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != e.Method {
-		http.NotFound(w, r)
-		return
-	}
-
-	ctx := &runtimeContext{
-		ctx:      r.Context(),
-		endpoint: e,
-		request:  r,
-		response: w,
-	}
-	ctx.Next()
 }

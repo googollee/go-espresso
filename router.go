@@ -64,6 +64,28 @@ func (g *router) register(ctx *buildtimeContext, fn HandleFunc) {
 
 	pattern := ctx.endpoint.Method + " " + path
 	g.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
-		endpoint.serveHTTP(w, r)
+		wr := &responseWriter{
+			ResponseWriter: w,
+		}
+
+		ctx := &runtimeContext{
+			ctx:      r.Context(),
+			endpoint: &endpoint,
+			request:  r,
+			response: wr,
+		}
+
+		ctx.Next()
+
+		if wr.hasWritten || ctx.err != nil {
+			return
+		}
+
+		code := http.StatusInternalServerError
+		if httpCoder, ok := ctx.err.(HTTPError); ok {
+			code = httpCoder.HTTPCode()
+		}
+		w.WriteHeader(code)
+		fmt.Fprint(w, ctx.err.Error())
 	})
 }
