@@ -3,6 +3,7 @@ package espresso
 import (
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 )
 
@@ -53,14 +54,16 @@ func (g *router) handleFunc(fn HandleFunc) {
 
 func (g *router) register(ctx *buildtimeContext, fn HandleFunc) {
 	path := strings.TrimRight(g.prefix, "/") + "/" + strings.TrimLeft(ctx.endpoint.Path, "/")
-	chains := append(g.middlewares, ctx.endpoint.ChainFuncs...)
+	chains := slices.Clone(g.middlewares)
+	chains = append(chains, ctx.endpoint.ChainFuncs...)
 	chains = append(chains, fn)
 
 	endpoint := *ctx.endpoint
 	endpoint.Path = path
 	endpoint.ChainFuncs = chains
 
-	g.mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+	pattern := ctx.endpoint.Method + " " + path
+	g.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 		endpoint.serveHTTP(w, r)
 	})
 }

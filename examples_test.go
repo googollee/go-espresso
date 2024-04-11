@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"testing"
 
 	"github.com/googollee/go-espresso"
 	"github.com/googollee/go-espresso/codec"
@@ -16,8 +17,7 @@ type Book struct {
 	Title string `json:"title"`
 }
 
-func ExampleEspresso() {
-	panic(1)
+func TestEspresso(t *testing.T) {
 	books := make(map[int]Book)
 	books[1] = Book{
 		ID:    1,
@@ -80,15 +80,17 @@ func ExampleEspresso() {
 		var book Book
 		resp, err := http.Get(svr.URL + "/book/1")
 		if err != nil {
-			panic(err)
+			t.Fatal(err)
 		}
 		defer resp.Body.Close()
 
 		if err := json.NewDecoder(resp.Body).Decode(&book); err != nil {
-			panic(err)
+			t.Fatal(err)
 		}
 
-		fmt.Println("book(1) title:", book.Title)
+		if got, want := book.Title, books[1].Title; got != want {
+			t.Errorf("got = %q, want: %q", got, want)
+		}
 	}()
 
 	func() {
@@ -96,12 +98,12 @@ func ExampleEspresso() {
 
 		var buf bytes.Buffer
 		if err := json.NewEncoder(&buf).Encode(&arg); err != nil {
-			panic(err)
+			t.Fatal(err)
 		}
 
 		resp, err := http.Post(svr.URL+"/book/1", "application/json", &buf)
 		if err != nil {
-			panic(err)
+			t.Fatal(err)
 		}
 		defer resp.Body.Close()
 
@@ -110,6 +112,8 @@ func ExampleEspresso() {
 			panic(err)
 		}
 
-		fmt.Println(ret.Title, " id:", ret.ID)
+		if got, want := ret.ID, 2; got != want {
+			t.Errorf("got = %v, want: %v", got, want)
+		}
 	}()
 }

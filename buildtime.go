@@ -37,7 +37,7 @@ type buildtimeContext struct {
 func newBuildtimeContext() *buildtimeContext {
 	return &buildtimeContext{
 		Context:  context.Background(),
-		endpoint: &Endpoint{},
+		endpoint: newEndpoint(),
 	}
 }
 

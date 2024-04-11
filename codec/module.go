@@ -73,5 +73,6 @@ func (c *Codecs) DecodeRequest(ctx Context, v any) error {
 }
 
 func (c *Codecs) EncodeResponse(ctx Context, v any) error {
-	return c.Response(ctx).Encode(ctx, ctx.ResponseWriter(), v)
+	codec := c.Response(ctx)
+	return codec.Encode(ctx, ctx.ResponseWriter(), v)
 }

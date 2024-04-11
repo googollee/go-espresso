@@ -15,12 +15,14 @@ type providerWithLine struct {
 // Repo is a repository of modules, and to inject instances creating by modules into a context.
 type Repo struct {
 	providers map[moduleKey]providerWithLine
+	instances map[moduleKey]any
 }
 
 // NewRepo creates a Repo instance.
 func NewRepo() *Repo {
 	return &Repo{
 		providers: make(map[moduleKey]providerWithLine),
+		instances: make(map[moduleKey]any),
 	}
 }
 
@@ -54,7 +56,7 @@ func (r *Repo) InjectTo(ctx context.Context) (ret context.Context, err error) {
 	ret = &moduleContext{
 		Context:   ctx,
 		providers: providers,
-		instances: make(map[moduleKey]any),
+		instances: r.instances,
 	}
 
 	for key := range r.providers {

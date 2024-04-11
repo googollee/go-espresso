@@ -17,7 +17,21 @@ type Endpoint struct {
 	ChainFuncs  []HandleFunc
 }
 
+func newEndpoint() *Endpoint {
+	return &Endpoint{
+		PathParams:  make(map[string]BindParam),
+		QueryParams: make(map[string]BindParam),
+		FormParams:  make(map[string]BindParam),
+		HeadParams:  make(map[string]BindParam),
+	}
+}
+
 func (e *Endpoint) serveHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != e.Method {
+		http.NotFound(w, r)
+		return
+	}
+
 	ctx := &runtimeContext{
 		ctx:      r.Context(),
 		endpoint: e,
