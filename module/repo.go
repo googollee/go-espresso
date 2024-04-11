@@ -54,8 +54,12 @@ func (r *Repo) InjectTo(ctx context.Context) (context.Context, error) {
 	r.locker.RUnlock()
 
 	if needCreating {
+		var err error
+
 		r.locker.Lock()
-		err := r.buildValues(ctx)
+		if len(r.instances) == 0 {
+			err = r.buildValues(ctx)
+		}
 		r.locker.Unlock()
 
 		if err != nil {
