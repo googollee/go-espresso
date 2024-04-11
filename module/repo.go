@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"sync"
 )
 
 type providerWithLine struct {
@@ -15,6 +16,8 @@ type providerWithLine struct {
 // Repo is a repository of modules, and to inject instances creating by modules into a context.
 type Repo struct {
 	providers map[moduleKey]providerWithLine
+
+	locker    sync.RWMutex // protects filed `instances` below
 	instances map[moduleKey]any
 }
 
@@ -43,24 +46,42 @@ func (r *Repo) Add(provider Provider) {
 
 // InjectTo injects instances created by modules into a context `ctx`.
 // It returns a new context with all injections. If any module creates an instance with an error, `InjectTo` returns that error with the module name.
-func (r *Repo) InjectTo(ctx context.Context) (ret context.Context, err error) {
+// Injecting instances only create once if necessary. Calling `InjectTo` mutlple times share instances between returning contexts.
+// InjectTo ignores all new providers adding to the Repo after the first run. So adding all providers before calling `InjectTo`.
+func (r *Repo) InjectTo(ctx context.Context) (context.Context, error) {
+	r.locker.RLock()
+	needCreating := len(r.instances) == 0
+	r.locker.RUnlock()
+
+	if needCreating {
+		r.locker.Lock()
+		err := r.buildValues(ctx)
+		r.locker.Unlock()
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &moduleContext{
+		Context:   ctx,
+		instances: r.instances,
+	}, nil
+}
+
+func (r *Repo) buildValues(ctx context.Context) (err error) {
 	defer func() {
 		err = r.catchError(recover())
 	}()
 
-	providers := make(map[moduleKey]Provider)
-	for k, p := range r.providers {
-		providers[k] = p.provider
-	}
-
-	ret = &moduleContext{
+	builder := &buildContext{
 		Context:   ctx,
-		providers: providers,
+		providers: r.providers,
 		instances: r.instances,
 	}
 
 	for key := range r.providers {
-		_ = ret.Value(key)
+		_ = builder.Value(key)
 	}
 
 	return
