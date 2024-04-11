@@ -85,6 +85,10 @@ func TestEspresso(t *testing.T) {
 		}
 		defer resp.Body.Close()
 
+		if resp.StatusCode != http.StatusOK {
+			t.Fatal(resp.Status)
+		}
+
 		buf, err := io.ReadAll(resp.Body)
 		if err != nil {
 			t.Fatal(err)
@@ -112,6 +116,10 @@ func TestEspresso(t *testing.T) {
 		}
 		defer resp.Body.Close()
 
+		if resp.StatusCode != http.StatusOK {
+			t.Fatal(resp.Status)
+		}
+
 		retbuf, err := io.ReadAll(resp.Body)
 		if err != nil {
 			t.Fatal(err)
@@ -119,7 +127,7 @@ func TestEspresso(t *testing.T) {
 
 		var ret Book
 		if err := json.NewDecoder(bytes.NewReader(retbuf)).Decode(&ret); err != nil {
-			panic(err)
+			t.Fatal(string(retbuf), err)
 		}
 
 		if got, want := ret.ID, 2; got != want {
