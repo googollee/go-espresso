@@ -17,6 +17,7 @@ type Book struct {
 }
 
 func ExampleEspresso() {
+	panic(1)
 	books := make(map[int]Book)
 	books[1] = Book{
 		ID:    1,
@@ -29,7 +30,7 @@ func ExampleEspresso() {
 
 	espo := espresso.New()
 
-	espo.Handle(func(ctx espresso.Context) error {
+	espo.HandleFunc(func(ctx espresso.Context) error {
 		var id int
 		if err := ctx.Endpoint(http.MethodGet, "/book/{id}").
 			BindPath("id", &id).
@@ -49,7 +50,7 @@ func ExampleEspresso() {
 		return nil
 	})
 
-	espo.Handle(func(ctx espresso.Context) error {
+	espo.HandleFunc(func(ctx espresso.Context) error {
 		if err := ctx.Endpoint(http.MethodPost, "/book/").
 			End(); err != nil {
 			return err

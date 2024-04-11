@@ -6,28 +6,34 @@ import (
 	"github.com/googollee/go-espresso/module"
 )
 
-type Router interface {
-	Use(middlewares ...HandleFunc)
-	HandleFunc(handleFunc HandleFunc)
-	HandleAll(service any)
-}
-
-type Server struct {
+type Espresso struct {
 	repo   *module.Repo
 	mux    *http.ServeMux
 	router Router
 }
 
-func New() *Server {
-	return &Server{
+func New() *Espresso {
+	return &Espresso{
 		repo:   module.NewRepo(),
 		mux:    http.NewServeMux(),
 		router: &router{},
 	}
 }
 
-func (s *Server) AddModule(provider ...module.Provider) {
+func (s *Espresso) AddModule(provider ...module.Provider) {
 	for _, p := range provider {
 		s.repo.Add(p)
 	}
+}
+
+func (s *Espresso) Use(middlewares ...HandleFunc) {
+	s.router.Use(middlewares...)
+}
+
+func (s *Espresso) HandleFunc(handleFunc HandleFunc) {
+	s.router.HandleFunc(handleFunc)
+}
+
+func (s *Espresso) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.mux.ServeHTTP(w, r)
 }

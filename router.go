@@ -1,13 +1,15 @@
 package espresso
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strings"
-
-	"github.com/googollee/go-espresso/builder"
 )
+
+type Router interface {
+	Use(middlewares ...HandleFunc)
+	HandleFunc(handleFunc HandleFunc)
+}
 
 type router struct {
 	prefix      string
@@ -15,7 +17,7 @@ type router struct {
 	mux         *http.ServeMux
 }
 
-func (g *router) WithPrefix(path string) *router {
+func (g *router) WithPrefix(path string) Router {
 	return &router{
 		prefix:      strings.TrimRight(g.prefix, "/") + "/" + strings.Trim(path, "/"),
 		middlewares: g.middlewares[0:len(g.middlewares)],
@@ -28,34 +30,37 @@ func (g *router) Use(middleware ...HandleFunc) {
 }
 
 func (g *router) HandleFunc(fn HandleFunc) {
-	g.handleFunc(fn, fmt.Sprintf("%T", fn))
+	g.handleFunc(fn)
 }
 
-func (g *router) handleFunc(fn HandleFunc, sig string) {
-	var endpoint Endpoint
-	ctx := builder.NewContext(context.Background())
+func (g *router) handleFunc(fn HandleFunc) {
+	ctx := newBuildtimeContext()
 
 	defer func() {
 		v := recover()
-		if v != builder.ErrEndpointBuildEnd {
+		if v != errBuilderEnd {
 			if v == nil {
-				v = fmt.Errorf("should call Endpoint().End()")
+				v = fmt.Errorf("should call ctx.Endpoint().End()")
 			}
 			panic(v)
 		}
 
-		endpoint.Path = strings.TrimRight(g.prefix, "/") + "/" + strings.Trim(endpoint.Path, "/")
-
-		g.server.registerEndpoint(ctx.EndpointDef, g.middlewares, fn, sig)
+		g.register(ctx, fn)
 	}()
 
 	_ = fn(ctx)
 }
 
-func (g *router) register(endpoint *Endpoint) {
-	path := strings.TrimRight(g.prefix, "/") + "/" + strings.TrimLeft(endpoint.Path, "/")
-	middlewares := append(g.middlewares, endpoint.MiddlewareFuncs...)
+func (g *router) register(ctx *buildtimeContext, fn HandleFunc) {
+	path := strings.TrimRight(g.prefix, "/") + "/" + strings.TrimLeft(ctx.endpoint.Path, "/")
+	chains := append(g.middlewares, ctx.endpoint.ChainFuncs...)
+	chains = append(chains, fn)
+
+	endpoint := *ctx.endpoint
+	endpoint.Path = path
+	endpoint.ChainFuncs = chains
 
 	g.mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		endpoint.serveHTTP(w, r)
 	})
 }
