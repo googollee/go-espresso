@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -84,8 +85,12 @@ func TestEspresso(t *testing.T) {
 		}
 		defer resp.Body.Close()
 
-		if err := json.NewDecoder(resp.Body).Decode(&book); err != nil {
+		buf, err := io.ReadAll(resp.Body)
+		if err != nil {
 			t.Fatal(err)
+		}
+		if err := json.NewDecoder(bytes.NewReader(buf)).Decode(&book); err != nil {
+			t.Fatal(string(buf), err)
 		}
 
 		if got, want := book.Title, books[1].Title; got != want {
@@ -107,8 +112,13 @@ func TestEspresso(t *testing.T) {
 		}
 		defer resp.Body.Close()
 
+		retbuf, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		var ret Book
-		if err := json.NewDecoder(resp.Body).Decode(&ret); err != nil {
+		if err := json.NewDecoder(bytes.NewReader(retbuf)).Decode(&ret); err != nil {
 			panic(err)
 		}
 
