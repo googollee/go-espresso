@@ -17,7 +17,7 @@ type providerWithLine struct {
 type Repo struct {
 	providers map[moduleKey]providerWithLine
 
-	locker    sync.RWMutex // protects filed `instances` below
+	init      sync.Once
 	instances map[moduleKey]any
 }
 
@@ -49,22 +49,12 @@ func (r *Repo) Add(provider Provider) {
 // Injecting instances only create once if necessary. Calling `InjectTo` mutlple times share instances between returning contexts.
 // InjectTo ignores all new providers adding to the Repo after the first run. So adding all providers before calling `InjectTo`.
 func (r *Repo) InjectTo(ctx context.Context) (context.Context, error) {
-	r.locker.RLock()
-	needCreating := len(r.instances) == 0
-	r.locker.RUnlock()
-
-	if needCreating {
-		var err error
-
-		r.locker.Lock()
-		if len(r.instances) == 0 {
-			err = r.buildValues(ctx)
-		}
-		r.locker.Unlock()
-
-		if err != nil {
-			return nil, err
-		}
+	var err error
+	r.init.Do(func() {
+		err = r.buildValues(ctx)
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return &moduleContext{
