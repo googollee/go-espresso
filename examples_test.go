@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
-	"testing"
 
 	"github.com/googollee/go-espresso"
 	"github.com/googollee/go-espresso/codec"
@@ -18,7 +16,7 @@ type Book struct {
 	Title string `json:"title"`
 }
 
-func TestEspresso(t *testing.T) {
+func ExampleEspresso() {
 	books := make(map[int]Book)
 	books[1] = Book{
 		ID:    1,
@@ -81,25 +79,19 @@ func TestEspresso(t *testing.T) {
 		var book Book
 		resp, err := http.Get(svr.URL + "/book/1")
 		if err != nil {
-			t.Fatal(err)
+			panic(err)
 		}
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
-			t.Fatal(resp.Status)
+			panic(resp.Status)
 		}
 
-		buf, err := io.ReadAll(resp.Body)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := json.NewDecoder(bytes.NewReader(buf)).Decode(&book); err != nil {
-			t.Fatal(string(buf), err)
+		if err := json.NewDecoder(resp.Body).Decode(&book); err != nil {
+			panic(err)
 		}
 
-		if got, want := book.Title, books[1].Title; got != want {
-			t.Errorf("got = %q, want: %q", got, want)
-		}
+		fmt.Println("Book 1 title:", book.Title)
 	}()
 
 	func() {
@@ -107,31 +99,28 @@ func TestEspresso(t *testing.T) {
 
 		var buf bytes.Buffer
 		if err := json.NewEncoder(&buf).Encode(&arg); err != nil {
-			t.Fatal(err)
+			panic(err)
 		}
 
 		resp, err := http.Post(svr.URL+"/book/1", "application/json", &buf)
 		if err != nil {
-			t.Fatal(err)
+			panic(err)
 		}
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
-			t.Fatal(resp.Status)
-		}
-
-		retbuf, err := io.ReadAll(resp.Body)
-		if err != nil {
-			t.Fatal(err)
+			panic(resp.Status)
 		}
 
 		var ret Book
-		if err := json.NewDecoder(bytes.NewReader(retbuf)).Decode(&ret); err != nil {
-			t.Fatal(string(retbuf), err)
+		if err := json.NewDecoder(resp.Body).Decode(&ret); err != nil {
+			panic(err)
 		}
 
-		if got, want := ret.ID, 2; got != want {
-			t.Errorf("got = %v, want: %v", got, want)
-		}
+		fmt.Println("The New Book id:", ret.ID)
 	}()
+
+	// Output:
+	// Book 1 title: The Espresso Book
+	// The New Book id: 2
 }
