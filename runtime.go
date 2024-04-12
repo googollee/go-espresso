@@ -94,7 +94,11 @@ func (c *runtimeContext) ResponseWriter() http.ResponseWriter {
 }
 
 func (c *runtimeContext) Next() {
-	c.endpoint.ChainFuncs[c.chainIndex](c)
+	index := c.chainIndex
+	c.chainIndex++
+	if err := c.endpoint.ChainFuncs[index](c); err != nil {
+		c.err = err
+	}
 }
 
 func (c *runtimeContext) Error() error {

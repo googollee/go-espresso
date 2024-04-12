@@ -23,6 +23,7 @@ func New() *Espresso {
 	}
 
 	ret.AddModule(codec.Module.ProvideWithFunc(codec.Default))
+	ret.Use(cacheAllError)
 
 	return ret
 }
