@@ -3,7 +3,6 @@ package espresso
 import (
 	"net/http"
 
-	"github.com/googollee/go-espresso/codec"
 	"github.com/googollee/go-espresso/module"
 )
 
@@ -22,7 +21,6 @@ func New() *Espresso {
 		mux: ret.mux,
 	}
 
-	ret.AddModule(codec.Module.ProvideWithFunc(codec.Default))
 	ret.Use(cacheAllError)
 
 	return ret

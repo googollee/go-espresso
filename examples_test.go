@@ -28,6 +28,7 @@ func ExampleEspresso() {
 	}
 
 	espo := espresso.New()
+	espo.AddModule(codec.Provider)
 
 	espo.HandleFunc(func(ctx espresso.Context) error {
 		var id int

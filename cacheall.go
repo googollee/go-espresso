@@ -13,32 +13,47 @@ func cacheAllError(ctx Context) error {
 	}
 	code := http.StatusInternalServerError
 	defer func() {
-		perr := recover()
+		err := checkError(ctx, recover())
 
-		if wr.hasWritten || (ctx.Error() == nil && perr == nil) {
+		if wr.hasWritten || err == nil {
 			return
 		}
 
-		if httpCoder, ok := ctx.Error().(HTTPError); ok {
+		if httpCoder, ok := err.(HTTPError); ok {
 			code = httpCoder.HTTPCode()
 		}
 		wr.WriteHeader(code)
 
-		if perr == nil {
-			perr = ctx.Error()
-		}
-
 		codec := codec.Module.Value(ctx)
 		if codec == nil {
-			fmt.Fprintf(wr, "%v", perr)
+			fmt.Fprintf(wr, "%v", err)
 			return
 		}
 
-		_ = codec.EncodeResponse(ctx, perr)
+		_ = codec.EncodeResponse(ctx, err)
 	}()
 
 	ctx = ctx.WithResponseWriter(wr)
 	ctx.Next()
+
+	return nil
+}
+
+func checkError(ctx Context, perr any) error {
+	if perr != nil {
+		return Error(http.StatusInternalServerError, fmt.Errorf("%v", perr))
+	}
+
+	for _, err := range []error{ctx.Err(), ctx.Error()} {
+		if err == nil {
+			continue
+		}
+
+		if _, ok := err.(HTTPError); ok {
+			return err
+		}
+		return Error(http.StatusInternalServerError, err)
+	}
 
 	return nil
 }
