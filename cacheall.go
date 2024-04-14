@@ -44,16 +44,14 @@ func checkError(ctx Context, perr any) error {
 		return Error(http.StatusInternalServerError, fmt.Errorf("%v", perr))
 	}
 
-	for _, err := range []error{ctx.Err(), ctx.Error()} {
-		if err == nil {
-			continue
-		}
-
-		if _, ok := err.(HTTPError); ok {
-			return err
-		}
-		return Error(http.StatusInternalServerError, err)
+	err := ctx.Err()
+	if err == nil {
+		return nil
 	}
 
-	return nil
+	if _, ok := err.(HTTPError); ok {
+		return err
+	}
+
+	return Error(http.StatusInternalServerError, err)
 }

@@ -60,6 +60,9 @@ func (c *runtimeContext) Done() <-chan struct{} {
 }
 
 func (c *runtimeContext) Err() error {
+	if c.err != nil {
+		return c.err
+	}
 	return c.ctx.Err()
 }
 
@@ -99,8 +102,4 @@ func (c *runtimeContext) Next() {
 	if err := c.endpoint.ChainFuncs[index](c); err != nil {
 		c.err = err
 	}
-}
-
-func (c *runtimeContext) Error() error {
-	return c.err
 }

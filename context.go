@@ -17,7 +17,6 @@ type Context interface {
 	ContextExtender
 	Endpoint(method string, path string, middlewares ...HandleFunc) EndpointBuilder
 
-	Error() error
 	Next()
 
 	Request() *http.Request
