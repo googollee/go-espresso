@@ -21,7 +21,7 @@ func New() *Espresso {
 		mux: ret.mux,
 	}
 
-	ret.Use(cacheAllError)
+	ret.Use(logHandling, cacheAllError)
 
 	return ret
 }

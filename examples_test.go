@@ -2,10 +2,13 @@ package espresso_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 
 	"github.com/googollee/go-espresso"
 	"github.com/googollee/go-espresso/codec"
@@ -28,6 +31,18 @@ func ExampleEspresso() {
 	}
 
 	espo := espresso.New()
+	// Log to stdout for Output
+	espo.AddModule(espresso.LogModule.ProvideWithFunc(func(ctx context.Context) (*slog.Logger, error) {
+		return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+				// Remove time from the output for predictable test output.
+				if a.Key == slog.TimeKey {
+					return slog.Attr{}
+				}
+				return a
+			},
+		})), nil
+	}))
 	espo.AddModule(codec.Provider)
 
 	espo.HandleFunc(func(ctx espresso.Context) error {
@@ -122,6 +137,10 @@ func ExampleEspresso() {
 	}()
 
 	// Output:
+	// level=INFO msg="receive http" method=GET path=/book/1
+	// level=INFO msg="finish http" method=GET path=/book/1
 	// Book 1 title: The Espresso Book
+	// level=INFO msg="receive http" method=POST path=/book/1
+	// level=INFO msg="finish http" method=POST path=/book/1
 	// The New Book id: 2
 }
