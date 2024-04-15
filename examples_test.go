@@ -11,7 +11,6 @@ import (
 	"os"
 
 	"github.com/googollee/go-espresso"
-	"github.com/googollee/go-espresso/codec"
 )
 
 type Book struct {
@@ -43,7 +42,7 @@ func ExampleEspresso() {
 			},
 		})), nil
 	}))
-	espo.AddModule(codec.Provider)
+	espo.AddModule(espresso.ProvideCodecs)
 
 	espo.HandleFunc(func(ctx espresso.Context) error {
 		var id int
@@ -58,7 +57,7 @@ func ExampleEspresso() {
 			return espresso.Error(http.StatusNotFound, fmt.Errorf("not found"))
 		}
 
-		if err := codec.Module.Value(ctx).EncodeResponse(ctx, &book); err != nil {
+		if err := espresso.CodecsModule.Value(ctx).EncodeResponse(ctx, &book); err != nil {
 			return err
 		}
 
@@ -71,7 +70,7 @@ func ExampleEspresso() {
 			return err
 		}
 
-		codecs := codec.Module.Value(ctx)
+		codecs := espresso.CodecsModule.Value(ctx)
 
 		var book Book
 		if err := codecs.DecodeRequest(ctx, &book); err != nil {

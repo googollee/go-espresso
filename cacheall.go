@@ -3,8 +3,6 @@ package espresso
 import (
 	"fmt"
 	"net/http"
-
-	"github.com/googollee/go-espresso/codec"
 )
 
 func cacheAllError(ctx Context) error {
@@ -24,7 +22,7 @@ func cacheAllError(ctx Context) error {
 		}
 		wr.WriteHeader(code)
 
-		codec := codec.Module.Value(ctx)
+		codec := CodecsModule.Value(ctx)
 		if codec == nil {
 			fmt.Fprintf(wr, "%v", err)
 			return

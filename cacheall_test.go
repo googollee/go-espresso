@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/googollee/go-espresso"
-	"github.com/googollee/go-espresso/codec"
 	"github.com/googollee/go-espresso/module"
 )
 
@@ -48,7 +47,7 @@ func TestCacheAllMiddleware(t *testing.T) {
 		},
 		{
 			name:      "MiddlewareErrorWithCodec",
-			providers: []module.Provider{codec.Provider},
+			providers: []module.Provider{espresso.ProvideCodecs},
 			middlewares: []espresso.HandleFunc{func(ctx espresso.Context) error {
 				return errors.New("error")
 			}},
@@ -57,7 +56,7 @@ func TestCacheAllMiddleware(t *testing.T) {
 		},
 		{
 			name:      "MiddlewareHTTPErrorWithCodec",
-			providers: []module.Provider{codec.Provider},
+			providers: []module.Provider{espresso.ProvideCodecs},
 			middlewares: []espresso.HandleFunc{func(ctx espresso.Context) error {
 				return espresso.Error(http.StatusGatewayTimeout, errors.New("gateway timeout"))
 			}},
@@ -66,7 +65,7 @@ func TestCacheAllMiddleware(t *testing.T) {
 		},
 		{
 			name:      "MiddlewarePanicWithCodec",
-			providers: []module.Provider{codec.Provider},
+			providers: []module.Provider{espresso.ProvideCodecs},
 			middlewares: []espresso.HandleFunc{func(ctx espresso.Context) error {
 				panic("panic")
 			}},
