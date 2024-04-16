@@ -22,11 +22,12 @@ Examples to show the usage:
  - [Example (SimpleWeb)]
  - [Example (RestAPI)]
 
-[Example (SimpleWeb)]: https://pkg.go.dev/github.com/googollee/go-espresso#example-Engine-SimpleWeb
-[Example (RestAPI)]: https://pkg.go.dev/github.com/googollee/go-espresso#example-Engine-RestAPI
+[Example (SimpleWeb)]: https://pkg.go.dev/github.com/googollee/go-espresso#example-Espresso
+[Example (RestAPI)]: https://pkg.go.dev/github.com/googollee/go-espresso#example-Espresso-Rpc
 
 Requirement:
 
-- Go >= 1.20
+- Go >= 1.22
   - Require generics.
   - `errors.Is()` supports `interface{ Unwrap() []error }`
+  - With `GODEBUG=httpmuxgo121=0`
