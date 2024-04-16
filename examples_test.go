@@ -13,101 +13,13 @@ import (
 	"github.com/googollee/go-espresso"
 )
 
-func ProvideLogger(ctx context.Context) (*slog.Logger, error) {
-	removeTime := func(groups []string, a slog.Attr) slog.Attr {
-		// Remove time from the output for predictable test output.
-		if a.Key == slog.TimeKey {
-			return slog.Attr{}
-		}
-		return a
-	}
-
-	opt := slog.HandlerOptions{
-		ReplaceAttr: removeTime,
-	}
-	return slog.New(slog.NewTextHandler(os.Stdout, &opt)), nil
-}
-
-type Book struct {
-	ID    int    `json:"id"`
-	Title string `json:"title"`
-}
-
-type Books map[int]Book
-
-func (books Books) GetBookHTTP(ctx espresso.Context) error {
-	var id int
-	if err := ctx.Endpoint(http.MethodGet, "/book/{id}").
-		BindPath("id", &id).
-		End(); err != nil {
-		return err
-	}
-
-	book, ok := books[id]
-	if !ok {
-		return espresso.Error(http.StatusNotFound, fmt.Errorf("not found"))
-	}
-
-	if err := espresso.CodecsModule.Value(ctx).EncodeResponse(ctx, &book); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (books Books) CreateBookHTTP(ctx espresso.Context) error {
-	if err := ctx.Endpoint(http.MethodPost, "/book").
-		End(); err != nil {
-		return err
-	}
-
-	codecs := espresso.CodecsModule.Value(ctx)
-
-	var book Book
-	if err := codecs.DecodeRequest(ctx, &book); err != nil {
-		return espresso.Error(http.StatusBadRequest, err)
-	}
-
-	book.ID = len(books)
-	books[book.ID] = book
-
-	if err := codecs.EncodeResponse(ctx, &book); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (books Books) GetBookRPC(ctx espresso.Context) (*Book, error) {
-	var id int
-	if err := ctx.Endpoint(http.MethodGet, "/book/{id}").
-		BindPath("id", &id).
-		End(); err != nil {
-		return nil, err
-	}
-
-	book, ok := books[id]
-	if !ok {
-		return nil, espresso.Error(http.StatusNotFound, fmt.Errorf("not found"))
-	}
-
-	return &book, nil
-
-}
-
-func (books Books) CreateBookRPC(ctx espresso.Context, book *Book) (*Book, error) {
-	if err := ctx.Endpoint(http.MethodPost, "/book").
-		End(); err != nil {
-		return nil, err
-	}
-
-	book.ID = len(books)
-	books[book.ID] = *book
-
-	return book, nil
-}
-
 func ExampleEspresso() {
+	type Book struct {
+		ID    int    `json:"id"`
+		Title string `json:"title"`
+	}
+	type Books map[int]Book
+
 	books := make(Books)
 	books[1] = Book{
 		ID:    1,
@@ -120,12 +32,65 @@ func ExampleEspresso() {
 
 	espo := espresso.New()
 	// Log to stdout for Output
-	espo.AddModule(espresso.LogModule.ProvideWithFunc(ProvideLogger))
+	espo.AddModule(espresso.LogModule.ProvideWithFunc(func(ctx context.Context) (*slog.Logger, error) {
+		removeTime := func(groups []string, a slog.Attr) slog.Attr {
+			// Remove time from the output for predictable test output.
+			if a.Key == slog.TimeKey {
+				return slog.Attr{}
+			}
+			return a
+		}
+
+		opt := slog.HandlerOptions{
+			ReplaceAttr: removeTime,
+		}
+		return slog.New(slog.NewTextHandler(os.Stdout, &opt)), nil
+	}))
+
 	espo.AddModule(espresso.ProvideCodecs)
 
 	router := espo.WithPrefix("/http")
-	router.HandleFunc(books.GetBookHTTP)
-	router.HandleFunc(books.CreateBookHTTP)
+	router.HandleFunc(func(ctx espresso.Context) error {
+		var id int
+		if err := ctx.Endpoint(http.MethodGet, "/book/{id}").
+			BindPath("id", &id).
+			End(); err != nil {
+			return err
+		}
+
+		book, ok := books[id]
+		if !ok {
+			return espresso.Error(http.StatusNotFound, fmt.Errorf("not found"))
+		}
+
+		if err := espresso.CodecsModule.Value(ctx).EncodeResponse(ctx, &book); err != nil {
+			return err
+		}
+
+		return nil
+	})
+	router.HandleFunc(func(ctx espresso.Context) error {
+		if err := ctx.Endpoint(http.MethodPost, "/book").
+			End(); err != nil {
+			return err
+		}
+
+		codecs := espresso.CodecsModule.Value(ctx)
+
+		var book Book
+		if err := codecs.DecodeRequest(ctx, &book); err != nil {
+			return espresso.Error(http.StatusBadRequest, err)
+		}
+
+		book.ID = len(books)
+		books[book.ID] = book
+
+		if err := codecs.EncodeResponse(ctx, &book); err != nil {
+			return err
+		}
+
+		return nil
+	})
 
 	svr := httptest.NewServer(espo)
 	defer svr.Close()
@@ -185,6 +150,12 @@ func ExampleEspresso() {
 }
 
 func ExampleEspresso_rpc() {
+	type Book struct {
+		ID    int    `json:"id"`
+		Title string `json:"title"`
+	}
+	type Books map[int]Book
+
 	books := make(Books)
 	books[1] = Book{
 		ID:    1,
@@ -197,12 +168,49 @@ func ExampleEspresso_rpc() {
 
 	espo := espresso.New()
 	// Log to stdout for Output
-	espo.AddModule(espresso.LogModule.ProvideWithFunc(ProvideLogger))
+	espo.AddModule(espresso.LogModule.ProvideWithFunc(func(ctx context.Context) (*slog.Logger, error) {
+		removeTime := func(groups []string, a slog.Attr) slog.Attr {
+			// Remove time from the output for predictable test output.
+			if a.Key == slog.TimeKey {
+				return slog.Attr{}
+			}
+			return a
+		}
+
+		opt := slog.HandlerOptions{
+			ReplaceAttr: removeTime,
+		}
+		return slog.New(slog.NewTextHandler(os.Stdout, &opt)), nil
+	}))
 	espo.AddModule(espresso.ProvideCodecs)
 
 	router := espo.WithPrefix("/rpc")
-	router.HandleFunc(espresso.RPCRetrive(books.GetBookRPC))
-	router.HandleFunc(espresso.RPC(books.CreateBookRPC))
+	router.HandleFunc(espresso.RPCRetrive(func(ctx espresso.Context) (*Book, error) {
+		var id int
+		if err := ctx.Endpoint(http.MethodGet, "/book/{id}").
+			BindPath("id", &id).
+			End(); err != nil {
+			return nil, err
+		}
+
+		book, ok := books[id]
+		if !ok {
+			return nil, espresso.Error(http.StatusNotFound, fmt.Errorf("not found"))
+		}
+
+		return &book, nil
+	}))
+	router.HandleFunc(espresso.RPC(func(ctx espresso.Context, book *Book) (*Book, error) {
+		if err := ctx.Endpoint(http.MethodPost, "/book").
+			End(); err != nil {
+			return nil, err
+		}
+
+		book.ID = len(books)
+		books[book.ID] = *book
+
+		return book, nil
+	}))
 
 	svr := httptest.NewServer(espo)
 	defer svr.Close()
