@@ -11,7 +11,6 @@ var errRegisterContextCall = errors.New("should call Context.Endpoint() in the b
 
 type buildtimeEndpoint struct {
 	endpoint *Endpoint
-	err      BindErrors
 }
 
 func (b *buildtimeEndpoint) BindPath(key string, v any) EndpointBuilder {

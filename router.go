@@ -9,6 +9,7 @@ import (
 
 type Router interface {
 	Use(middlewares ...HandleFunc)
+	WithPrefix(path string) Router
 	HandleFunc(handleFunc HandleFunc)
 }
 

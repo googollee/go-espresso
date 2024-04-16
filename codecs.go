@@ -3,6 +3,7 @@ package espresso
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"mime"
 
@@ -42,12 +43,19 @@ func NewCodecs(codec ...Codec) *Codecs {
 }
 
 func (c *Codecs) DecodeRequest(ctx Context, v any) error {
-	return c.Request(ctx).Decode(ctx, ctx.Request().Body, v)
+	codec := c.Request(ctx)
+	if err := codec.Decode(ctx, ctx.Request().Body, v); err != nil {
+		return fmt.Errorf("decode with codec(%s) error: %w", codec.Mime(), err)
+	}
+	return nil
 }
 
 func (c *Codecs) EncodeResponse(ctx Context, v any) error {
 	codec := c.Response(ctx)
-	return codec.Encode(ctx, ctx.ResponseWriter(), v)
+	if err := codec.Encode(ctx, ctx.ResponseWriter(), v); err != nil {
+		return fmt.Errorf("encode with codec(%s) error: %w", codec.Mime(), err)
+	}
+	return nil
 }
 
 func (c *Codecs) Request(ctx Context) Codec {

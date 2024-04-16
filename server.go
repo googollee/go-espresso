@@ -40,6 +40,10 @@ func (s *Espresso) HandleFunc(handleFunc HandleFunc) {
 	s.router.HandleFunc(handleFunc)
 }
 
+func (s *Espresso) WithPrefix(path string) Router {
+	return s.router.WithPrefix(path)
+}
+
 func (s *Espresso) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx, err := s.repo.InjectTo(r.Context())
 	if err != nil {
