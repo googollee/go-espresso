@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/googollee/go-espresso/module"
+	"github.com/googollee/module"
 )
 
 var (

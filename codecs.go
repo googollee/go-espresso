@@ -7,7 +7,7 @@ import (
 	"io"
 	"mime"
 
-	"github.com/googollee/go-espresso/module"
+	"github.com/googollee/module"
 	"gopkg.in/yaml.v3"
 )
 

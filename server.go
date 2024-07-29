@@ -3,7 +3,7 @@ package espresso
 import (
 	"net/http"
 
-	"github.com/googollee/go-espresso/module"
+	"github.com/googollee/module"
 )
 
 type Espresso struct {

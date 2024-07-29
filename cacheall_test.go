@@ -9,8 +9,9 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/googollee/module"
+
 	"github.com/googollee/go-espresso"
-	"github.com/googollee/go-espresso/module"
 )
 
 func TestCacheAllMiddleware(t *testing.T) {
