@@ -21,7 +21,7 @@ func logHandling(ctx Context) error {
 
 	slog := LogModule.Value(ctx)
 	if slog != nil {
-		ctx = ctx.WithParent(LogModule.With(ctx, slog.With("method", method, "path", path)))
+		ctx = ctx.WithParent(log.With(ctx, "method", method, "path", path))
 	}
 
 	INFO(ctx, "receive http")
