@@ -15,24 +15,14 @@ jobs:
         go:
         - 'stable'
         - 'oldstable'
-        - 'current'
     steps:
     - name: Checkout the repo
       uses: actions/checkout@v4
 
     - name: Set up Go
-      if: ${{ matrix.go }} != 'current'
       uses: actions/setup-go@v5
       with:
         go-version: '${{ matrix.go }}'
-        check-latest: true
-        cache-dependency-path: ./go.sum
-
-    - name: Set up Go
-      if: ${{ matrix.go }} != 'current'
-      uses: actions/setup-go@v5
-      with:
-        go-version-file: ./go.mod
         check-latest: true
         cache-dependency-path: ./go.sum
 
