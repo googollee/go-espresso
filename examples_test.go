@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -211,6 +212,123 @@ func ExampleEspresso_rpc() {
 
 		return book, nil
 	}))
+
+	svr := httptest.NewServer(espo)
+	defer svr.Close()
+
+	func() {
+		var book Book
+		resp, err := http.Get(svr.URL + "/rpc/book/1")
+		if err != nil {
+			panic(err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			panic(resp.Status)
+		}
+
+		if err := json.NewDecoder(resp.Body).Decode(&book); err != nil {
+			panic(err)
+		}
+
+		fmt.Println("Book 1 title:", book.Title)
+	}()
+
+	func() {
+		arg := Book{Title: "The New Book"}
+
+		var buf bytes.Buffer
+		if err := json.NewEncoder(&buf).Encode(&arg); err != nil {
+			panic(err)
+		}
+
+		resp, err := http.Post(svr.URL+"/rpc/book", "application/json", &buf)
+		if err != nil {
+			panic(err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			panic(resp.Status)
+		}
+
+		var ret Book
+		if err := json.NewDecoder(resp.Body).Decode(&ret); err != nil {
+			panic(err)
+		}
+
+		fmt.Println("The New Book id:", ret.ID)
+	}()
+
+	// Output:
+	// level=INFO msg="receive http" method=GET path=/rpc/book/1
+	// level=INFO msg="finish http" method=GET path=/rpc/book/1
+	// Book 1 title: The Espresso Book
+	// level=INFO msg="receive http" method=POST path=/rpc/book
+	// level=INFO msg="finish http" method=POST path=/rpc/book
+	// The New Book id: 2
+}
+
+type Book struct {
+	ID    int    `json:"id"`
+	Title string `json:"title"`
+}
+
+type BookController struct {
+	books map[int]Book
+}
+
+func (c *BookController) Create(ctx espresso.Context, book *Book) (*Book, error) {
+	if err := ctx.Endpoint(http.MethodPost, "/book").End(); err != nil {
+		return nil, err
+	}
+
+	book.ID = len(c.books) + 1
+	c.books[book.ID] = *book
+
+	return book, nil
+}
+
+func (c *BookController) Get(ctx espresso.Context) (*Book, error) {
+	var id int
+	if err := ctx.Endpoint(http.MethodGet, "/book/{id}").
+		BindPath("id", &id).
+		End(); err != nil {
+		return nil, err
+	}
+
+	book, ok := c.books[id]
+	if !ok {
+		return nil, espresso.Error(http.StatusNotFound, errors.New("not found"))
+	}
+
+	return &book, nil
+}
+
+func ExampleEspresso_Handle() {
+	espo := espresso.New()
+	// Log to stdout for Output
+	espo.AddModule(espresso.LogModule.ProvideWithFunc(func(ctx context.Context) (*slog.Logger, error) {
+		removeTime := func(groups []string, a slog.Attr) slog.Attr {
+			// Remove time from the output for predictable test output.
+			if a.Key == slog.TimeKey {
+				return slog.Attr{}
+			}
+			return a
+		}
+
+		opt := slog.HandlerOptions{
+			ReplaceAttr: removeTime,
+		}
+		return slog.New(slog.NewTextHandler(os.Stdout, &opt)), nil
+	}))
+	espo.AddModule(espresso.ProvideCodecs)
+
+	router := espo.WithPrefix("/rpc")
+	router.Handle(&BookController{books: map[int]Book{
+		1: {ID: 1, Title: "The Espresso Book"},
+	}})
 
 	svr := httptest.NewServer(espo)
 	defer svr.Close()

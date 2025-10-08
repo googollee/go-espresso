@@ -40,6 +40,10 @@ func (s *Espresso) HandleFunc(handleFunc HandleFunc) {
 	s.router.HandleFunc(handleFunc)
 }
 
+func (s *Espresso) Handle(controller any) {
+	s.router.Handle(controller)
+}
+
 func (s *Espresso) WithPrefix(path string) Router {
 	return s.router.WithPrefix(path)
 }

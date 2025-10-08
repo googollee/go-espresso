@@ -3,6 +3,7 @@ package espresso
 import (
 	"fmt"
 	"net/http"
+	"reflect"
 	"slices"
 	"strings"
 )
@@ -11,6 +12,7 @@ type Router interface {
 	Use(middlewares ...HandleFunc)
 	WithPrefix(path string) Router
 	HandleFunc(handleFunc HandleFunc)
+	Handle(controller any)
 }
 
 type router struct {
@@ -74,4 +76,18 @@ func (g *router) register(ctx *buildtimeContext, fn HandleFunc) {
 
 		ctx.Next()
 	})
+}
+
+func (g *router) Handle(controller any) {
+	v := reflect.ValueOf(controller)
+	for i := 0; i < v.NumMethod(); i++ {
+		method := v.Method(i)
+
+		fn, err := handleRPC(method)
+		if err != nil {
+			continue
+		}
+
+		g.handleFunc(fn)
+	}
 }
